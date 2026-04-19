@@ -83,7 +83,8 @@ try:
     cl = st.columns(len(r_g))
     for i, t in enumerate(sorted(r_g)):
         p = float(df_g[t].iloc[-1])
-        f5, f21, f63 = ("🔼" if p > float(df_g[t].iloc[-x]) else "🔽" for x in)
+              f5, f21, f63 = ("🔼" if p > float(df_g[t].iloc[-x]) else "🔽" for x in [5, 21, 63])
+ 
         with cl[i]: st.code(f"{t}\n{f5}|{f21}|{f63}")
 except: st.warning("Sincronizando...")
 
