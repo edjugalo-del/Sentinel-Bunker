@@ -5,7 +5,6 @@ import yfinance as yf
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 import nltk
 
-# --- 🛰️ CONFIGURACIÓN V110 ---
 st.set_page_config(page_title="SENTINEL QUANT V110", page_icon="🧠", layout="wide")
 
 try:
@@ -14,10 +13,9 @@ except LookupError:
     nltk.download('vader_lexicon')
 
 def color_sentinel(val):
-    if "🔥" in str(val) or "🛡️" in str(val): return 'background-color: #1B5E20; color: white'
-    if "⚖️" in str(val) or "⌛" in str(val): return 'background-color: #1A237E; color: white'
-    if "🏹" in str(val) or "🛰️" in str(val): return 'background-color: #F57F17; color: white'
-    if "⚠️" in str(val): return 'background-color: #B71C1C; color: white'
+    if "🔥" in str(val): return 'background-color: #1B5E20; color: white'
+    if "⌛" in str(val): return 'background-color: #1A237E; color: white'
+    if "🛰️" in str(val): return 'background-color: #F57F17; color: white'
     return ''
 
 def obtener_humor_sentinel(ticker):
@@ -81,10 +79,8 @@ r_g = ['NVDA', 'TSM', 'ASML', 'YPF', 'GLD', 'CCJ', 'CAT']
 try:
     df_g = yf.download(r_g, period="6mo", interval="1d", progress=False)['Close'].ffill()
     cl = st.columns(len(r_g))
-    for i, t in enumerate(sorted(r_g)):
+    for i, t in enumerate(sorted(radar_g)): # Usar radar_g aquí
         p = float(df_g[t].iloc[-1])
-              f5, f21, f63 = ("🔼" if p > float(df_g[t].iloc[-x]) else "🔽" for x in [5, 21, 63])
- 
+        f5, f21, f63 = ("🔼" if p > float(df_g[t].iloc[-x]) else "🔽" for x in [5, 21, 63])
         with cl[i]: st.code(f"{t}\n{f5}|{f21}|{f63}")
 except: st.warning("Sincronizando...")
-
