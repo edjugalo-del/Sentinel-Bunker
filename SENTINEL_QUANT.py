@@ -61,6 +61,8 @@ df_radar = pd.DataFrame(list(f_init.items()), columns=['ACTIVO', 'SCORE IA'])
 df_radar['PRECIO ACT'] = df_radar['ACTIVO'].apply(get_price)
 df_radar['ATTENTION'] = df_radar['ACTIVO'].apply(logica_atencion_tft)
 hum_data = df_radar['ACTIVO'].apply(obtener_humor_sentinel)
+hum_data = df_radar['ACTIVO'].apply(obtener_humor_sentinel)
+# Separamos: el Score (número) para el cálculo y el Humor (texto) para la vista
 df_radar['SCORE HUMOR'] = [float(x[0]) for x in hum_data]
 df_radar['HUMOR'] = [str(x[1]) for x in hum_data]
 
