@@ -61,17 +61,14 @@ df_radar = pd.DataFrame(list(f_init.items()), columns=['ACTIVO', 'SCORE IA'])
 df_radar['PRECIO ACT'] = df_radar['ACTIVO'].apply(get_price)
 df_radar['ATTENTION'] = df_radar['ACTIVO'].apply(logica_atencion_tft)
 hum_data = df_radar['ACTIVO'].apply(obtener_humor_sentinel)
-hum_data = df_radar['ACTIVO'].apply(obtener_humor_sentinel)
-hum_data = df_radar['ACTIVO'].apply(obtener_humor_sentinel)
-# Extraemos el número para el cálculo y el texto para la vista
 df_radar['SCORE HUMOR'] = [float(x[0]) for x in hum_data]
 df_radar['HUMOR'] = [str(x[1]) for x in hum_data]
 
-
-df_radar['CERTEZA'] = df_radar.apply(lambda x: inferencia_bayesiana(x['SCORE IA'], x['SCORE HUMOR'][0], x['ATTENTION']), axis=1)
+df_radar['CERTEZA'] = df_radar.apply(lambda x: inferencia_bayesiana(x['SCORE IA'], x['SCORE HUMOR'], x['ATTENTION']), axis=1)
 df_radar['KELLY %'] = df_radar['SCORE IA'].apply(lambda x: max(0, round((x * 2.5 - 1) / 1.5 / 4, 4)))
 df_radar['SUGERENCIA $'] = df_radar['KELLY %'] * st.session_state.liq
 df_radar['ACCIÓN'] = df_radar.apply(lambda x: "🛰️ FILTRANDO" if x['CERTEZA'] < 0.55 else ("🔥 COMPRA" if x['ATTENTION'] > 2.0 else "⌛ MANTENER"), axis=1)
+
 
 st.title("🛰️ SENTINEL QUANT V110")
 st.info(f"🧠 **MODO LABORATORIO:** Inferencia Bayesiana activa. Liquidez: ${st.session_state.liq:,.0f}")
