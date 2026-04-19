@@ -4,3 +4,5 @@ numpy
 yfinance
 tradingview-ta
 nltk
+scipy
+
