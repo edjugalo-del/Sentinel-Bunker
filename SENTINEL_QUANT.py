@@ -142,22 +142,32 @@ global_tickers = ['NVDA', 'AAPL', 'YPF', 'BTC-USD', 'GC=F']
 cols = st.columns(len(global_tickers))
 for i, gt in enumerate(global_tickers):
     try:
-        # Descarga individual para evitar que un error rompa todo el feed
-        g_hist = yf.download(gt, period="65d", interval="1d", progress=False)['Close']
-        if g_hist.empty: continue
-        
-        p_now = float(g_hist.iloc[-1])
+        # Descarga individual con reintento para evitar el NaN
+        g_data = yf.Ticker(gt).history(period="100d")
+        if g_data.empty: 
+            with cols[i]: st.caption(f"{gt}\n🚫 No Data")
+            continue
+            
+        p_now = float(g_data['Close'].iloc[-1])
         
         def get_trend(days):
-            if len(g_hist) < days: return "⚪"
-            ref = g_hist.iloc[-days]
+            if len(g_data) < days: return "⚪"
+            ref = g_data['Close'].iloc[-days]
             return "🔼" if p_now > ref else "🔽"
 
         with cols[i]:
             st.metric(gt, f"{p_now:,.2f}")
             st.code(f"{get_trend(5)} | {get_trend(21)} | {get_trend(63)}")
     except:
-        with cols[i]: st.caption(f"{gt}: ⌛ Sync")
+        with cols[i]: st.caption(f"{gt}\n⌛ Sync...")
 
+# --- 🛠️ FIX ESPECÍFICO PARA ACTIVOS LOCALES (DICP) ---
+# Si el precio es 0 o NaN, intentamos un fetch de último recurso
+if 'PRICE' in df_final.columns:
+    for idx, row in df_final.iterrows():
+        if "nan" in str(row['PRICE']).lower() or row['PRICE'] == "0.00":
+            try:
+                p_fix = yf.Ticker(row['ACTIVO']).history(period="1d")['Close'].iloc[-1]
+                df_final.at[idx, 'PRICE'] = f"{p_fix:,.2f}"
+            except: pass
 
-    
