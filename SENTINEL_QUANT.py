@@ -5,6 +5,7 @@ import yfinance as yf
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 import nltk
 
+# --- 🛰️ CONFIGURACIÓN V110 SUPREME ---
 st.set_page_config(page_title="SENTINEL QUANT V110", page_icon="🧠", layout="wide")
 
 try:
@@ -47,31 +48,49 @@ def inferencia_bayesiana(prior_ia, humor_val, atencion):
 
 def get_price(t):
     try:
-   if 'liq' not in st.session_state: st.session_state.liq = 3800000.0
+        d = yf.Ticker(t).history(period="5d")
+        if d.empty: return 0.0
+        p = d['Close'].iloc[-1]
+        if "DICP" in t: p = p * 100 if p < 1000 else p
+        return round(p, 2)
+    except: return 0.0
+
+# --- 🕹️ GESTIÓN DE SESIÓN ---
+if 'liq' not in st.session_state: st.session_state.liq = 3800000.0
 f_init = {'YPFD.BA': 0.82, 'VIST.BA': 0.88, 'DICP.BA': 0.75, 'PAMP.BA': 0.80}
 
+# --- 📊 PROCESAMIENTO ---
 df_radar = pd.DataFrame(list(f_init.items()), columns=['ACTIVO', 'SCORE IA'])
 df_radar['PRECIO ACT'] = df_radar['ACTIVO'].apply(get_price)
 df_radar['ATTENTION'] = df_radar['ACTIVO'].apply(logica_atencion_tft)
 hum_data = df_radar['ACTIVO'].apply(obtener_humor_sentinel)
 df_radar['SCORE HUMOR'] = [float(x[0]) for x in hum_data]
 df_radar['HUMOR'] = [str(x[1]) for x in hum_data]
-
 df_radar['CERTEZA'] = df_radar.apply(lambda x: inferencia_bayesiana(x['SCORE IA'], x['SCORE HUMOR'], x['ATTENTION']), axis=1)
 df_radar['KELLY %'] = df_radar['SCORE IA'].apply(lambda x: max(0, round((x * 2.5 - 1) / 1.5 / 4, 4)))
 df_radar['SUGERENCIA $'] = df_radar['KELLY %'] * st.session_state.liq
 df_radar['ACCIÓN'] = df_radar.apply(lambda x: "🛰️ FILTRANDO" if x['CERTEZA'] < 0.55 else ("🔥 COMPRA" if x['ATTENTION'] > 2.0 else "⌛ MANTENER"), axis=1)
 
-# --- 📊 LIMPIEZA ATÓMICA PARA EL MOTOR GRÁFICO ---
+# --- 📊 LIMPIEZA ATÓMICA PARA EVITAR ERROR PYARROW ---
 df_final = df_radar.copy()
 for col in df_final.columns: df_final[col] = df_final[col].astype(str)
 
-st.write("### 📊 Tablero de Inferencia Institucional")
+st.title("🛰️ SENTINEL QUANT V110")
+st.info(f"🧠 **MODO LABORATORIO:** Inferencia Bayesiana activa. Liquidez: ${st.session_state.liq:,.0f}")
+
 columnas_final = ['ACTIVO', 'ACCIÓN', 'CERTEZA', 'ATTENTION', 'HUMOR', 'SCORE IA', 'PRECIO ACT', 'KELLY %', 'SUGERENCIA $']
 st.dataframe(df_final[columnas_final].style.map(color_sentinel, subset=['ACCIÓN']), use_container_width=True, hide_index=True)
 
-    for i, t in enumerate(sorted(radar_g)): # Usar radar_g aquí
+# --- 🛰️ RADAR FRACTAL ---
+st.write("---")
+st.write("### 🛰️ Radar Fractal Global")
+radar_g = ['NVDA', 'TSM', 'ASML', 'YPF', 'GLD', 'CCJ', 'CAT']
+try:
+    df_g = yf.download(radar_g, period="6mo", interval="1d", progress=False)['Close'].ffill()
+    cl = st.columns(len(radar_g))
+    for i, t in enumerate(sorted(radar_g)):
         p = float(df_g[t].iloc[-1])
         f5, f21, f63 = ("🔼" if p > float(df_g[t].iloc[-x]) else "🔽" for x in [5, 21, 63])
         with cl[i]: st.code(f"{t}\n{f5}|{f21}|{f63}")
-except: st.warning("Sincronizando...")
+except: st.warning("Sincronizando satélites...")
+
