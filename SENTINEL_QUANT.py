@@ -119,7 +119,7 @@ col1, col2 = st.columns([3, 1])
 with col1:
     st.subheader("Radar de Alta Prioridad")
     st.dataframe(
-        df_final.style.applymap(
+        df_final.style.map(
             lambda x: 'background-color: #06402B; color: #76FF03' if "COMPRA" in str(x) else '',
             subset=['ACCIÓN']
         ), 
