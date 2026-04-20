@@ -74,36 +74,47 @@ with st.spinner("Sincronizando con terminales de mercado..."):
 results = []
 for t in tickers:
     try:
-        # Extracción de métricas de precio/volumen
-               # --- BLOQUE DE DATOS ROBUSTO ---
+             # --- BLOQUE DE DATOS Y LÓGICA V125 ---
         hist = raw_data[t] if len(tickers) > 1 else raw_data
         
-        # Intento de precio con validación de NaN
+        # 1. Precio con rescate y redondeo
         try:
-            curr_price = float(hist['Close'].iloc[-1])
-            if np.isnan(curr_price): raise ValueError
+            p_val = float(hist['Close'].iloc[-1])
+            curr_price = round(p_val, 2) if not np.isnan(p_val) else 0.0
         except:
-            # Reintento individual para bonos argentinos (DICP)
             try:
-                curr_price = yf.Ticker(t).history(period="5d")['Close'].iloc[-1]
-            except:
-                curr_price = 0.0
+                p_val = yf.Ticker(t).history(period="5d")['Close'].iloc[-1]
+                curr_price = round(p_val, 2)
+            except: curr_price = 0.0
 
-        # Manejo de volumen para evitar divisiones por cero
+        # 2. Atención y Humor
         vol_avg = hist['Volume'].mean() if not hist['Volume'].empty else 1
         vol_curr = hist['Volume'].iloc[-1] if not hist['Volume'].empty else 0
-        atencion = round(vol_curr / vol_avg, 2) if vol_avg > 0 else 1.0
-
-        
-        # Sentimiento
+        atencion = round(vol_curr / vol_avg, 2)
         score_humor, humor_label = analyze_sentiment_institutional(t)
         
-        # Inferencia Bayesiana Refinada
+        # 3. Inferencia Bayesiana Agresiva (Senior Edge)
         prior = f_init[t]
-        # Si hay volumen y sentimiento positivo, la probabilidad posterior sube
-        likelihood = 1.2 if (atencion > 1.5 and score_humor > 0) else 0.85 if atencion < 0.7 else 1.0
-        posterior = (prior * likelihood) / ((prior * likelihood) + (1 - prior))
+        # Multiplicador de Verosimilitud (Likelihood) más sensible
+        # Si hay euforia Y volumen > 1.5, el multiplicador es fuerte (1.5)
+        likelihood = 1.0
+        if atencion > 1.5: likelihood *= 1.3
+        if score_humor > 10: likelihood *= 1.2
+        if atencion < 0.6: likelihood *= 0.7
         
+        posterior = (prior * likelihood) / ((prior * likelihood) + (1 - prior))
+        posterior = round(min(posterior, 0.99), 2) # Tope en 99% para realismo
+
+        # 4. Money Management (Kelly 1/4)
+        k_perc = calculate_kelly(posterior, win_rate_exp)
+        sug_cash = round(k_perc * liq, 2)
+        
+        # 5. Lógica de Señal Refinada
+        if posterior > 0.80 and atencion > 1.2: accion = "🔥 COMPRA FUERTE"
+        elif posterior > 0.65: accion = "⌛ MANTENER"
+        elif posterior < 0.45: accion = "🛰️ FILTRAR/VENTA"
+        else: accion = "⚖️ NEUTRAL"
+
         # Money Management
         k_perc = calculate_kelly(posterior, win_rate_exp)
         sug_cash = k_perc * liq
