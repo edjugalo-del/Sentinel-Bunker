@@ -137,21 +137,26 @@ with col2:
 st.write("---")
 st.markdown("### 🌐 Global Macro Momentum (5D | 21D | 63D)")
 global_tickers = ['NVDA', 'AAPL', 'YPF', 'BTC-USD', 'GC=F']
-g_data = get_market_data(global_tickers)
 
 cols = st.columns(len(global_tickers))
 for i, gt in enumerate(global_tickers):
     try:
-        p_series = g_data[gt]['Close'] if len(global_tickers) > 1 else g_data['Close']
-        p_now = p_series.iloc[-1]
+        # Descarga individual para evitar que un error rompa todo el feed
+        g_hist = yf.download(gt, period="65d", interval="1d", progress=False)['Close']
+        if g_hist.empty: continue
+        
+        p_now = float(g_hist.iloc[-1])
         
         def get_trend(days):
-            ref = p_series.iloc[-days]
+            if len(g_hist) < days: return "⚪"
+            ref = g_hist.iloc[-days]
             return "🔼" if p_now > ref else "🔽"
 
         with cols[i]:
             st.metric(gt, f"{p_now:,.2f}")
             st.code(f"{get_trend(5)} | {get_trend(21)} | {get_trend(63)}")
-    except: continue
+    except:
+        with cols[i]: st.caption(f"{gt}: ⌛ Sync")
+
 
     
