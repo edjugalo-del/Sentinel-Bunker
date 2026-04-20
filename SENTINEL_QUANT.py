@@ -77,7 +77,6 @@ df_radar['HUMOR'] = df_radar['HUMOR'].astype(str)
 st.write("### 📊 Tablero de Inferencia Institucional")
 columnas_final = ['ACTIVO', 'ACCIÓN', 'CERTEZA', 'ATTENTION', 'HUMOR', 'SCORE IA', 'PRECIO ACT', 'KELLY %', 'SUGERENCIA $']
 
-
 st.write("---")
 st.write("### 🛰️ Radar Fractal Global")
 r_g = ['NVDA', 'TSM', 'ASML', 'YPF', 'GLD', 'CCJ', 'CAT']
