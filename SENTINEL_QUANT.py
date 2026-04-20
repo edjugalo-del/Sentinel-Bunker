@@ -29,22 +29,23 @@ def get_market_data(tickers):
         return pd.DataFrame()
 
 def analyze_sentiment_institutional(ticker):
-    """Análisis de sentimiento con manejo de ruido"""
     if not sia: return 0.0, "⚖️ NEUTRAL"
     try:
         t = yf.Ticker(ticker)
-        news = t.news[:8]
+        news = t.news
         if not news: return 0.0, "⚖️ SIN DATA"
         
-        scores = [sia.polarity_scores(n['title'])['compound'] for n in news]
+        scores = [sia.polarity_scores(n['title'])['compound'] for n in news[:5]]
         avg_score = np.mean(scores)
         
-        if avg_score > 0.15: mood = "🔥 EUFORIA"
-        elif avg_score < -0.15: mood = "😱 PÁNICO"
+        if avg_score > 0.10: mood = "🔥 EUFORIA"
+        elif avg_score < -0.10: mood = "😱 PÁNICO"
         else: mood = "⚖️ CALMA"
         
         return round(avg_score * 100, 2), mood
-    except: return 0.0, "⚠️ ERROR"
+    except: 
+        return 0.0, "⚖️ CALMA"
+
 
 def calculate_kelly(edge, win_rate=0.55):
     """
