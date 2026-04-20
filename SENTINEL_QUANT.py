@@ -153,3 +153,4 @@ for i, gt in enumerate(global_tickers):
             st.metric(gt, f"{p_now:,.2f}")
             st.code(f"{get_trend(5)} | {get_trend(21)} | {get_trend(63)}")
     except: continue
+
