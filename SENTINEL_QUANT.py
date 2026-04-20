@@ -75,11 +75,25 @@ results = []
 for t in tickers:
     try:
         # Extracción de métricas de precio/volumen
+               # --- BLOQUE DE DATOS ROBUSTO ---
         hist = raw_data[t] if len(tickers) > 1 else raw_data
-        curr_price = float(hist['Close'].iloc[-1])
-        vol_avg = hist['Volume'].mean()
-        vol_curr = hist['Volume'].iloc[-1]
-        atencion = round(vol_curr / vol_avg, 2)
+        
+        # Intento de precio con validación de NaN
+        try:
+            curr_price = float(hist['Close'].iloc[-1])
+            if np.isnan(curr_price): raise ValueError
+        except:
+            # Reintento individual para bonos argentinos (DICP)
+            try:
+                curr_price = yf.Ticker(t).history(period="5d")['Close'].iloc[-1]
+            except:
+                curr_price = 0.0
+
+        # Manejo de volumen para evitar divisiones por cero
+        vol_avg = hist['Volume'].mean() if not hist['Volume'].empty else 1
+        vol_curr = hist['Volume'].iloc[-1] if not hist['Volume'].empty else 0
+        atencion = round(vol_curr / vol_avg, 2) if vol_avg > 0 else 1.0
+
         
         # Sentimiento
         score_humor, humor_label = analyze_sentiment_institutional(t)
