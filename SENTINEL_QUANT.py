@@ -71,11 +71,12 @@ df_radar['KELLY %'] = df_radar['SCORE IA'].apply(lambda x: max(0, round((x * 2.5
 df_radar['SUGERENCIA $'] = df_radar['KELLY %'] * st.session_state.liq
 df_radar['ACCIÓN'] = df_radar.apply(lambda x: "🛰️ FILTRANDO" if x['CERTEZA'] < 0.55 else ("🔥 COMPRA" if x['ATTENTION'] > 2.0 else "⌛ MANTENER"), axis=1)
 
+# --- 📊 LIMPIEZA DE SEGURIDAD ---
+df_radar['HUMOR'] = df_radar['HUMOR'].astype(str)
 
-st.title("🛰️ SENTINEL QUANT V110")
-st.info(f"🧠 **MODO LABORATORIO:** Inferencia Bayesiana activa. Liquidez: ${st.session_state.liq:,.0f}")
-cols = ['ACTIVO', 'ACCIÓN', 'CERTEZA', 'ATTENTION', 'HUMOR', 'SCORE IA', 'PRECIO ACT', 'KELLY %', 'SUGERENCIA $']
-st.dataframe(df_radar[cols].style.map(color_sentinel, subset=['ACCIÓN']), use_container_width=True, hide_index=True)
+st.write("### 📊 Tablero de Inferencia Institucional")
+columnas_final = ['ACTIVO', 'ACCIÓN', 'CERTEZA', 'ATTENTION', 'HUMOR', 'SCORE IA', 'PRECIO ACT', 'KELLY %', 'SUGERENCIA $']
+
 
 st.write("---")
 st.write("### 🛰️ Radar Fractal Global")
