@@ -5,8 +5,8 @@ import yfinance as yf
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 import nltk
 
-# --- 🛰️ CONFIGURACIÓN INSTITUCIONAL V150 ---
-st.set_page_config(page_title="SENTINEL V150", page_icon="🏦", layout="wide")
+# --- 🛰️ CONFIGURACIÓN INSTITUCIONAL V160 ---
+st.set_page_config(page_title="SENTINEL V160", page_icon="🏦", layout="wide")
 
 @st.cache_resource
 def init_nlp():
@@ -31,12 +31,11 @@ def fmt_money(val):
 # --- 🧠 MOTOR DE RIESGO (MONTE CARLO) ---
 def run_monte_carlo(capital, days=30):
     sims = 1000
-    results = []
+    results_mc = []
     for _ in range(sims):
-        # Simulación de retornos diarios con volatilidad del 2%
         daily_ret = np.random.normal(0.0005, 0.02, days)
-        results.append(capital * np.prod(1 + daily_ret))
-    return np.percentile(results, 5), np.percentile(results, 95)
+        results_mc.append(capital * np.prod(1 + daily_ret))
+    return np.percentile(results_mc, 5), np.percentile(results_mc, 95)
 
 # --- 🧠 LÓGICA DE SENTIMIENTO ---
 def analyze_sentiment(ticker):
@@ -47,7 +46,11 @@ def analyze_sentiment(ticker):
         if not news: return 0.0, "⚖️ CALMA"
         scores = [sia.polarity_scores(n['title'])['compound'] for n in news]
         avg = np.mean(scores)
-# --- 📊 PROCESAMIENTO DE DATOS V160 ---
+        mood = "🔥 EUFORIA" if avg > 0.1 else "😱 PÁNICO" if avg < -0.1 else "⚖️ CALMA"
+        return round(avg * 100, 2), mood
+    except: return 0.0, "⚖️ CALMA"
+
+# --- 📊 PROCESAMIENTO DE DATOS ---
 f_init = {'YPFD.BA': 0.82, 'VIST.BA': 0.88, 'GGAL.BA': 0.80, 'NVDA': 0.85, 'TSLA': 0.75}
 precios_entrada = {'YPFD.BA': 58500.0, 'VIST.BA': 31000.0, 'GGAL.BA': 3200.0, 'NVDA': 850.0, 'TSLA': 170.0}
 tickers = list(f_init.keys())
@@ -153,3 +156,4 @@ try:
         except: continue
     st.dataframe(pd.DataFrame(arb_res), use_container_width=True, hide_index=True)
 except: st.caption("Esperando apertura...")
+
