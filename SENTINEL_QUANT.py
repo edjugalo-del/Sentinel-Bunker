@@ -166,34 +166,57 @@ for i, (ticker, nombre) in enumerate(global_dict.items()):
     except:
         with cols_macro[i]: st.caption(f"{nombre}: ⌛ Sync")
 
-# --- 🎯 DETECTOR DE DESARBITRAJE REAL ---
+# --- 🎯 MONITOR DE ARBITRAJE MULTI-ACTIVO ---
 st.write("---")
 st.subheader("🎯 Detector de Desarbitraje CEDEARs")
 
 try:
-    # Calculamos CCL usando GGAL (Ratio 10:1)
-    gl = yf.Ticker("GGAL.BA").history(period="2d")['Close']
-    ga = yf.Ticker("GGAL").history(period="2d")['Close']
+    # 1. Calculamos el "Dólar Sentinel" (CCL Promedio GGAL/YPF)
+    def get_ccl():
+        gl = yf.Ticker("GGAL.BA").history(period="2d")['Close'].iloc[-1]
+        ga = yf.Ticker("GGAL").history(period="2d")['Close'].iloc[-1]
+        return (gl * 10) / ga
+
+    ccl_sentinel = get_ccl()
+    st.info(f"💵 **Dólar CCL Referencia:** ${ccl_sentinel:.2f}")
+
+    # 2. Diccionario de Ratios (Ticker: Ratio) - AJUSTAR SEGÚN BYMA
+    ratios = {
+        'NVDA': 48, 
+        'TSLA': 15, 
+        'AAPL': 10, 
+        'VIST': 1, # VIST es 1:1 si es el ADR directo
+        'AMZN': 144,
+        'META': 24
+    }
+
+    arbitraje_results = []
     
-    if not gl.empty and not ga.empty:
-        ccl_val = (gl.iloc[-1] * 10) / ga.iloc[-1]
-        st.info(f"💵 **Dólar CCL Sentinel:** ${ccl_val:.2f}")
+    # 3. Escaneo de Spreads
+    for t_usa, ratio in ratios.items():
+        try:
+            t_loc = f"{t_usa}.BA" if t_usa != 'VIST' else 'VIST.BA'
+            p_usa = yf.Ticker(t_usa).history(period="2d")['Close'].iloc[-1]
+            p_loc = yf.Ticker(t_loc).history(period="2d")['Close'].iloc[-1]
+            
+            p_teorico = (p_usa * ccl_sentinel) / ratio
+            spread = ((p_loc - p_teorico) / p_teorico) * 100
+            
+            arbitraje_results.append({
+                "ACTIVO": t_usa,
+                "SPREAD %": f"{spread:+.2f}%",
+                "ESTADO": "🔥 COMPRAR" if spread < -1.2 else "⚠️ VENDER" if spread > 1.2 else "✅ OK",
+                "val": spread # para ordenar
+            })
+        except: continue
 
-        # Ejemplo NVDA (Ratio 48:1)
-        na = yf.Ticker("NVDA").history(period="2d")['Close']
-        nl = yf.Ticker("NVDA.BA").history(period="2d")['Close']
-        
-        if not na.empty and not nl.empty:
-            teorico = (na.iloc[-1] * ccl_val) / 48 
-            sprd = ((nl.iloc[-1] - teorico) / teorico) * 100
+    df_arb = pd.DataFrame(arbitraje_results)
+    
+    # 4. Visualización Profesional
+    st.dataframe(df_arb.style.map(
+        lambda x: 'color: #76FF03' if "COMPRAR" in str(x) else 'color: #FF1744' if "VENDER" in str(x) else '',
+        subset=['ESTADO']
+    ), use_container_width=True, hide_index=True)
 
-            ca1, ca2 = st.columns(2)
-            with ca1: st.metric("NVDA Spread", f"{sprd:+.2f}%")
-            with ca2:
-                if abs(sprd) > 1.2:
-                    st.error(f"🔥 OPORTUNIDAD: {'VENDER' if sprd > 0 else 'COMPRAR'}")
-                else: st.success("✅ Arbitraje en Equilibrio")
-    else:
-        st.caption("Esperando flujos de BYMA para arbitraje...")
 except Exception as e:
-    st.caption("Sincronizando datos de mercado...")
+    st.caption("Esperando apertura de BYMA para sincronizar spreads...")
