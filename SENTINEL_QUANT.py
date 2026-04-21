@@ -167,27 +167,32 @@ st.write("---")
 st.subheader("🎯 Detector de Desarbitraje CEDEARs")
 
 try:
-    # Calculamos CCL usando GGAL (El estándar de la City)
-    ggal_local = yf.Ticker("GGAL.BA").history(period="1d")['Close'].iloc[-1]
-    ggal_adr = yf.Ticker("GGAL").history(period="1d")['Close'].iloc[-1]
-    ccl_real = (ggal_local * 10) / ggal_adr # Ratio GGAL es 10:1
+    # Calculamos CCL usando GGAL (Ratio 10:1)
+    ggal_l = yf.Ticker("GGAL.BA").history(period="2d")['Close']
+    ggal_a = yf.Ticker("GGAL").history(period="2d")['Close']
     
-    st.info(f"💵 **Dólar CCL Sentinel:** ${ccl_real:.2f}")
+    if not ggal_l.empty and not ggal_a.empty:
+        ccl_real = (ggal_l.iloc[-1] * 10) / ggal_a.iloc[-1]
+        st.info(f"💵 **Dólar CCL Sentinel:** ${ccl_real:.2f}")
 
-    # Ejemplo de detección (NVDA)
-    nvda_adr = yf.Ticker("NVDA").history(period="1d")['Close'].iloc[-1]
-    nvda_local = yf.Ticker("NVDA.BA").history(period="1d")['Close'].iloc[-1]
-    # Ratio NVDA es 48:1 (Ajustar según ratio actual)
-    precio_teorico = (nvda_adr * ccl_real) / 48 
-    spread = ((nvda_local - precio_teorico) / precio_teorico) * 100
+        # Ejemplo NVDA (Ratio 48:1)
+        n_a = yf.Ticker("NVDA").history(period="2d")['Close']
+        n_l = yf.Ticker("NVDA.BA").history(period="2d")['Close']
+        
+        if not n_a.empty and not n_l.empty:
+            p_teorico = (n_a.iloc[-1] * ccl_real) / 48 
+            spread = ((n_l.iloc[-1] - p_teorico) / p_teorico) * 100
 
-    col_arb1, col_arb2 = st.columns(2)
-    with col_arb1:
-        st.write(f"**NVDA Spread:** {spread:+.2f}%")
-    with col_arb2:
-        if abs(spread) > 1.2:
-            st.error(f"🔥 OPORTUNIDAD: {'VENDER' if spread > 0 else 'COMPRAR'} CEDEAR")
-        else:
-            st.success("✅ Arbitraje en equilibrio")
-except:
-    st.caption("Esperando apertura de BYMA para calcular spreads...")
+            c_arb1, c_arb2 = st.columns(2)
+            with c_arb1:
+                st.metric("NVDA Spread", f"{spread:+.2f}%")
+            with c_arb2:
+                if abs(spread) > 1.2:
+                    st.error(f"🔥 OPORTUNIDAD: {'VENDER' if spread > 0 else 'COMPRAR'}")
+                else:
+                    st.success("✅ Arbitraje en Equilibrio")
+    else:
+        st.caption("Esperando apertura de mercado para cálculos...")
+except Exception as e:
+    st.caption("Sincronizando flujos de BYMA...")
+
