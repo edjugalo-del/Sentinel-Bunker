@@ -97,19 +97,25 @@ df_final = pd.DataFrame(results)
 # --- 🖥️ INTERFACE SENTINEL V161.2 | ESTRATEGIA DE SHOCK ---
 st.title("🛰️ SENTINEL V161 | Institutional Fortress")
 
-# --- 🧠 RATIONALE ESTRATÉGICO DINÁMICO (FIX NOTA) ---
-def generar_nota_v161(dxy, brent):
-    # Priorizamos el Brent como driver de guerra
-    if brent > 98.0:
-        return "🔥 SHOCK DE OFERTA: Escenario de Guerra. Priorizar Energía (VIST/YPF).", "🚨"
-    if dxy > 105.5: 
-        return "⚠️ DEFENSA: DXY fuerte. Presión en commodities.", "🛡️"
-    if brent < 92.0:
-        return "🟢 ACUERDO DIPLOMÁTICO: Toma de ganancias en commodities sugerida.", "🕊️"
-    return "⌛ NEUTRAL: Mercado procesando datos de Islamabad.", "⚖️"
+# --- 🧠 MOTOR DE INFERENCIA EN VIVO (SENTINEL V161.5) ---
+try:
+    # 1. Captura de Datos Live (Brent y DXY) - Sin valores fijos
+    brent_live = yf.Ticker("BZ=F").history(period="1d", interval="1m")['Close'].iloc[-1]
+    dxy_live = yf.Ticker("DX-Y.NYB").history(period="1d", interval="1m")['Close'].iloc[-1]
+    
+    # 2. Lógica de Decisión por Umbrales Dinámicos
+    if brent_live > 98.5:
+        nota, icono = "🔥 SHOCK DE OFERTA: Escenario de Guerra. Priorizar Energía (VIST/YPF).", "🚨"
+    elif brent_live < 92.0:
+        nota, icono = "🟢 ACUERDO DIPLOMÁTICO: Toma de ganancias sugerida en commodities.", "🕊️"
+    else:
+        nota, icono = "⚖️ NEUTRAL: Mercado procesando datos de Islamabad.", "⌛"
+    
+    # 3. Renderizado del Mensaje con el precio REAL al lado
+    st.chat_message("assistant").write(f"**Rationale Estratégico:** {icono} {nota} (Brent: u$s {brent_live:.2f} | DXY: {dxy_live:.2f})")
 
-msg, icono = generar_nota_v161(dxy_now, brent_now)
-st.chat_message("assistant").write(f"**Rationale Estratégico:** {icono} {msg}")
+except Exception as e:
+    st.error(f"Falla en lectura de datos vivos: {e}")
 
 # --- 📊 MÉTRICAS DE RIESGO ---
 worst, best = run_monte_carlo(st.session_state.liq)
