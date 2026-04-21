@@ -149,9 +149,45 @@ for i, (gt, name) in enumerate(global_t.items()):
             st.code(f"5D: {get_t(5)} | 21D: {get_t(21)}")
     except: continue
 
-# --- 🎯 MONITOR DE ARBITRAJE ---
+st.subheader("🎯 Radar de Convergencia & P&L")
+
+# Lista simplificada para asegurar visibilidad
+cols_finales = [c for c in df_final.columns if c != 'val_post']
+
+if not df_final.empty:
+    st.dataframe(df_final[cols_finales].style.map(
+        lambda x: 'color: #76FF03' if any(word in str(x) for word in ["+", "COMPRA"]) else 'color: #FF1744' if any(word in str(x) for word in ["-", "FILTRAR"]) else '',
+        subset=[c for c in ["ACCIÓN", "P&L %", "P&L NETO"] if c in df_final.columns]
+    ), use_container_width=True, hide_index=True)
+else:
+    st.warning("🛰️ Sincronizando datos de mercado... Reintentando fetch.")
+
+# --- 🎯 DETECTOR DE DESARBITRAJE REAL ---
 st.write("---")
 st.subheader("🎯 Detector de Desarbitraje CEDEARs")
-st.caption("Umbral de arbitraje rentable: 1.2% (Neto de comisiones)")
-# Simulación de spread para activos clave (En una versión futura conectaremos el CCL real)
-st.code("NVDA: 0.8% (Ok) | TSLA: -1.4% (🔥 ARBITRAJE COMPRA) | VIST: 0.3% (Neutral)")
+
+try:
+    # Calculamos CCL usando GGAL (El estándar de la City)
+    ggal_local = yf.Ticker("GGAL.BA").history(period="1d")['Close'].iloc[-1]
+    ggal_adr = yf.Ticker("GGAL").history(period="1d")['Close'].iloc[-1]
+    ccl_real = (ggal_local * 10) / ggal_adr # Ratio GGAL es 10:1
+    
+    st.info(f"💵 **Dólar CCL Sentinel:** ${ccl_real:.2f}")
+
+    # Ejemplo de detección (NVDA)
+    nvda_adr = yf.Ticker("NVDA").history(period="1d")['Close'].iloc[-1]
+    nvda_local = yf.Ticker("NVDA.BA").history(period="1d")['Close'].iloc[-1]
+    # Ratio NVDA es 48:1 (Ajustar según ratio actual)
+    precio_teorico = (nvda_adr * ccl_real) / 48 
+    spread = ((nvda_local - precio_teorico) / precio_teorico) * 100
+
+    col_arb1, col_arb2 = st.columns(2)
+    with col_arb1:
+        st.write(f"**NVDA Spread:** {spread:+.2f}%")
+    with col_arb2:
+        if abs(spread) > 1.2:
+            st.error(f"🔥 OPORTUNIDAD: {'VENDER' if spread > 0 else 'COMPRAR'} CEDEAR")
+        else:
+            st.success("✅ Arbitraje en equilibrio")
+except:
+    st.caption("Esperando apertura de BYMA para calcular spreads...")
