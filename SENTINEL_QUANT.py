@@ -56,10 +56,21 @@ f_init = {'YPFD.BA': 0.82, 'VIST.BA': 0.88, 'GGAL.BA': 0.80, 'NVDA': 0.85, 'TSLA
 precios_entrada = {'YPFD.BA': 58500.0, 'VIST.BA': 31000.0, 'GGAL.BA': 3200.0, 'NVDA': 850.0, 'TSLA': 170.0}
 tickers = list(f_init.keys())
 
+# --- FETCH DE DATOS ROBUSTO V156 ---
 with st.spinner("Sincronizando Terminal Sentinel..."):
+    # Descarga con historial de 60 días para volumen
     raw_data = yf.download(tickers, period="60d", interval="1d", progress=False)
-    dxy_now = yf.Ticker("DX-Y.NYB").history(period="1d")['Close'].iloc[-1]
-    brent_now = yf.Ticker("BZ=F").history(period="1d")['Close'].iloc[-1]
+    
+    # --- FIX DE LLENADO NOCTURNO ---
+    if not raw_data.empty:
+        raw_data = raw_data.ffill().bfill() 
+    
+    # Captura de DXY y BRENT con reintento (Fix 5d)
+    try:
+        dxy_now = yf.Ticker("DX-Y.NYB").history(period="5d")['Close'].iloc[-1]
+        brent_now = yf.Ticker("BZ=F").history(period="5d")['Close'].iloc[-1]
+    except:
+        dxy_now, brent_now = 104.5, 95.0 # Valores de rescate por si cae la API
 
 results = []
 for t in tickers:
