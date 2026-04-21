@@ -112,27 +112,7 @@ def generar_nota(df, dxy, brent):
     if 'val_post' in df.columns:
         conf_avg = df['val_post'].mean()
     else:
-        conf_avg = 0.5 # Valor neutral por defecto si hay error de carga
-
-    if dxy > 105.5: 
-        return "⚠️ DEFENSA: Dólar Global (DXY) fuerte. Presión en commodities. Reducir exposición."
-    if brent > 94.0 and conf_avg > 0.75: 
-        return "🔥 ATAQUE: Brent firme arriba de $94. Inferencia Bayesiana valida momentum alcista."
-    if brent < 92.0: 
-        return "🚨 LIQUIDACIÓN: Brent rompió soporte de $92. Prioridad absoluta: Preservar capital."
-    return "⌛ NEUTRAL: Mercado lateral. Esperando confirmación de volumen para promediar."
-
-
-st.chat_message("assistant").write(f"**Rationale Estratégico:** {generar_nota(df_final, dxy_now, brent_now)}")
-
-# Stress Test Metrics
-worst, best = run_monte_carlo(st.session_state.liq)
-c1, c2, c3 = st.columns(3)
-with c1: st.metric("Riesgo Monte Carlo (VAR 5%)", fmt_money(worst), delta=f"-{((st.session_state.liq-worst)/st.session_state.liq)*100:.1f}%")
-with c2: st.metric("Potencial Upside (95%)", fmt_money(best))
-with c3: st.metric("Dólar DXY", f"{dxy_now:.2f}", delta="ALERTA" if dxy_now > 105 else "CALMA", delta_color="inverse")
-
-# --- 🖥️ INTERFACE V160 (ESTRUCTURA FINAL) ---
+ # --- 🖥️ INTERFACE ÚNICA V160 (FIX FINAL) ---
 df_final = pd.DataFrame(results)
 
 st.title("🛰️ SENTINEL V160 | Institutional Fortress")
@@ -151,15 +131,68 @@ def generar_nota(df, dxy, brent):
 
 st.chat_message("assistant").write(f"**Rationale Estratégico:** {generar_nota(df_final, d_n, b_n)}")
 
-# 2. TABLA DE OPERACIONES (Sincronización Inteligente)
+# 2. MÉTRICAS DE RIESGO (Stress Test)
+worst, best = run_monte_carlo(st.session_state.liq)
+c1, c2, c3 = st.columns(3)
+with c1: st.metric("Riesgo Monte Carlo (VAR 5%)", fmt_money(worst), delta=f"-{((st.session_state.liq-worst)/st.session_state.liq)*100:.1f}%")
+with c2: st.metric("Potencial Upside (95%)", fmt_money(best))
+with c3: st.metric("Dólar DXY", f"{d_n:.2f}", delta="ALERTA" if d_n > 105 else "CALMA", delta_color="inverse")
+
+# 3. TABLA DE OPERACIONES
 st.subheader("🎯 Radar de Convergencia & P&L")
 
 if not df_final.empty and len(results) > 0:
     cols_v = ["ACTIVO", "ACCIÓN", "CONFIDENCIA", "ATTN", "P&L %", "P&L NETO", "SUGERENCIA"]
     safe_c = [c for c in cols_v if c in df_final.columns]
     st.dataframe(df_final[safe_c].style.map(
-        lambda x: 'color: #76FF03' if any(w in str(x) for w in ["+", "COMPRA"]) else 'color: #FF1744' if any(w in str(x) for word in ["-", "FILTRAR"]) else '',
+        lambda x: 'color: #76FF03' if any(w in str(x) for w in ["+", "COMPRA"]) else 'color: #FF1744' if any(w in str(x) for w in ["-", "FILTRAR"]) else '',
         subset=[c for c in ["ACCIÓN", "P&L %", "P&L NETO"] if c in safe_c]
     ), use_container_width=True, hide_index=True)
 else:
-    st.info("🛰️ Sincronizando datos de mercado... El radar se activará con el primer latido de la bolsa.")
+    st.info("🛰️ Sincronizando datos de mercado... El radar se activará con la apertura de la bolsa.")
+
+# --- 🌐 GLOBAL FRACTAL MONITOR (5|21|63) ---
+st.write("---")
+st.markdown("### 🌐 Alerta Temprana & Fractal Global")
+global_dict = {'DX-Y.NYB': 'DXY', 'BZ=F': 'BRENT', 'GC=F': 'ORO', 'BTC-USD': 'BITCOIN'}
+cols_macro = st.columns(len(global_dict))
+
+for i, (ticker, nombre) in enumerate(global_dict.items()):
+    try:
+        m_hist = yf.Ticker(ticker).history(period="100d")['Close']
+        if not m_hist.empty:
+            p_actual = m_hist.iloc[-1]
+            def trend(d): return "🔼" if p_actual > m_hist.iloc[-d] else "🔽"
+            with cols_macro[i]:
+                st.metric(nombre, f"{p_actual:,.2f}")
+                st.code(f"{trend(5)} | {trend(21)} | {trend(63)}")
+    except:
+        with cols_macro[i]: st.caption(f"{nombre}: ⌛ Sync")
+
+# --- 🎯 MONITOR DE ARBITRAJE ---
+st.write("---")
+st.subheader("🎯 Detector de Desarbitraje CEDEARs")
+try:
+    gl = yf.Ticker("GGAL.BA").history(period="5d")['Close'].iloc[-1]
+    ga = yf.Ticker("GGAL").history(period="5d")['Close'].iloc[-1]
+    ccl_s = (gl * 10) / ga
+    st.info(f"💵 **Dólar CCL Referencia:** ${ccl_s:.2f}")
+
+    ratios = {'NVDA': 48, 'TSLA': 15, 'AAPL': 10, 'VIST': 1, 'AMZN': 144, 'META': 24}
+    arb_res = []
+    for t_usa, ratio in ratios.items():
+        try:
+            t_loc = f"{t_usa}.BA" if t_usa != 'VIST' else 'VIST.BA'
+            p_u = yf.Ticker(t_usa).history(period="5d")['Close'].iloc[-1]
+            p_l = yf.Ticker(t_loc).history(period="5d")['Close'].iloc[-1]
+            p_t = (p_u * ccl_s) / ratio
+            sprd = ((p_l - p_t) / p_t) * 100
+            arb_res.append({"ACTIVO": t_usa, "SPREAD %": f"{sprd:+.2f}%", 
+                            "ESTADO": "🔥 COMPRAR" if sprd < -1.2 else "⚠️ VENDER" if sprd > 1.2 else "✅ OK"})
+        except: continue
+    st.dataframe(pd.DataFrame(arb_res).style.map(
+        lambda x: 'color: #76FF03' if "COMPRAR" in str(x) else 'color: #FF1744' if "VENDER" in str(x) else '',
+        subset=['ESTADO']), use_container_width=True, hide_index=True)
+except:
+    st.caption("Esperando apertura de mercado para sincronizar spreads...")
+
