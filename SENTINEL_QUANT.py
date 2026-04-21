@@ -132,37 +132,24 @@ with c1: st.metric("Riesgo Monte Carlo (VAR 5%)", fmt_money(worst), delta=f"-{((
 with c2: st.metric("Potencial Upside (95%)", fmt_money(best))
 with c3: st.metric("Dólar DXY", f"{dxy_now:.2f}", delta="ALERTA" if dxy_now > 105 else "CALMA", delta_color="inverse")
 
-# --- 🖥️ TABLA DE OPERACIONES ÚNICA ---
-st.subheader("🎯 Radar de Convergencia & P&L")
-
-if not df_final.empty:
-    cols_visibles = ["ACTIVO", "ACCIÓN", "CONFIDENCIA", "ATTN", "P&L %", "P&L NETO", "SUGERENCIA"]
-    safe_cols = [c for c in cols_visibles if c in df_final.columns]
-    
-    st.dataframe(df_final[safe_cols].style.map(
-        lambda x: 'color: #76FF03' if any(word in str(x) for word in ["+", "COMPRA"]) else 'color: #FF1744' if any(word in str(x) for word in ["-", "FILTRAR"]) else '',
-        subset=[c for c in ["ACCIÓN", "P&L %", "P&L NETO"] if c in safe_cols]
-    ), use_container_width=True, hide_index=True)
-else:
-    st.info("🛰️ Sincronizando datos de mercado... El radar se activará en breve.")
-
-# --- 🌐 GLOBAL MACRO & ARBITRAGE MONITOR ---
+# --- 🌐 GLOBAL MACRO & FRACTAL MONITOR (V158) ---
 st.write("---")
-st.markdown("### 🌐 Alerta Temprana & Global Macro")
+st.markdown("### 🌐 Alerta Temprana & Fractal Global")
 
-# Diccionario de tickers globales robusto
 global_dict = {'DX-Y.NYB': 'DXY', 'BZ=F': 'BRENT', 'GC=F': 'ORO', 'BTC-USD': 'BITCOIN'}
 cols_macro = st.columns(len(global_dict))
 
 for i, (ticker, nombre) in enumerate(global_dict.items()):
     try:
-        m_hist = yf.Ticker(ticker).history(period="50d")['Close']
+        # 100 días para asegurar el ciclo de 63 (Trimestral)
+        m_hist = yf.Ticker(ticker).history(period="100d")['Close']
         if not m_hist.empty:
             p_actual = m_hist.iloc[-1]
+            # Función Fractal: 5 (Semana), 21 (Mes), 63 (Trimestre)
             def trend(d): return "🔼" if p_actual > m_hist.iloc[-d] else "🔽"
             with cols_macro[i]:
                 st.metric(nombre, f"{p_actual:,.2f}")
-                st.code(f"5D: {trend(5)} | 21D: {trend(21)}")
+                st.code(f"{trend(5)} | {trend(21)} | {trend(63)}")
     except:
         with cols_macro[i]: st.caption(f"{nombre}: ⌛ Sync")
 
@@ -171,33 +158,21 @@ st.write("---")
 st.subheader("🎯 Detector de Desarbitraje CEDEARs")
 
 try:
-    # 1. Calculamos el "Dólar Sentinel" (CCL Promedio GGAL/YPF)
-    def get_ccl():
-        gl = yf.Ticker("GGAL.BA").history(period="2d")['Close'].iloc[-1]
-        ga = yf.Ticker("GGAL").history(period="2d")['Close'].iloc[-1]
-        return (gl * 10) / ga
-
-    ccl_sentinel = get_ccl()
+    # 1. Dólar Sentinel (CCL Promedio GGAL)
+    gl = yf.Ticker("GGAL.BA").history(period="5d")['Close'].iloc[-1]
+    ga = yf.Ticker("GGAL").history(period="5d")['Close'].iloc[-1]
+    ccl_sentinel = (gl * 10) / ga
     st.info(f"💵 **Dólar CCL Referencia:** ${ccl_sentinel:.2f}")
 
-    # 2. Diccionario de Ratios (Ticker: Ratio) - AJUSTAR SEGÚN BYMA
-    ratios = {
-        'NVDA': 48, 
-        'TSLA': 15, 
-        'AAPL': 10, 
-        'VIST': 1, # VIST es 1:1 si es el ADR directo
-        'AMZN': 144,
-        'META': 24
-    }
-
+    # 2. Ratios y Tickers para Arbitraje (NVDA, TSLA, AAPL, VIST, AMZN, META)
+    ratios = {'NVDA': 48, 'TSLA': 15, 'AAPL': 10, 'VIST': 1, 'AMZN': 144, 'META': 24}
     arbitraje_results = []
     
-    # 3. Escaneo de Spreads
     for t_usa, ratio in ratios.items():
         try:
             t_loc = f"{t_usa}.BA" if t_usa != 'VIST' else 'VIST.BA'
-            p_usa = yf.Ticker(t_usa).history(period="2d")['Close'].iloc[-1]
-            p_loc = yf.Ticker(t_loc).history(period="2d")['Close'].iloc[-1]
+            p_usa = yf.Ticker(t_usa).history(period="5d")['Close'].iloc[-1]
+            p_loc = yf.Ticker(t_loc).history(period="5d")['Close'].iloc[-1]
             
             p_teorico = (p_usa * ccl_sentinel) / ratio
             spread = ((p_loc - p_teorico) / p_teorico) * 100
@@ -205,18 +180,14 @@ try:
             arbitraje_results.append({
                 "ACTIVO": t_usa,
                 "SPREAD %": f"{spread:+.2f}%",
-                "ESTADO": "🔥 COMPRAR" if spread < -1.2 else "⚠️ VENDER" if spread > 1.2 else "✅ OK",
-                "val": spread # para ordenar
+                "ESTADO": "🔥 COMPRAR" if spread < -1.2 else "⚠️ VENDER" if spread > 1.2 else "✅ OK"
             })
         except: continue
 
-    df_arb = pd.DataFrame(arbitraje_results)
-    
-    # 4. Visualización Profesional
-    st.dataframe(df_arb.style.map(
+    st.dataframe(pd.DataFrame(arbitraje_results).style.map(
         lambda x: 'color: #76FF03' if "COMPRAR" in str(x) else 'color: #FF1744' if "VENDER" in str(x) else '',
         subset=['ESTADO']
     ), use_container_width=True, hide_index=True)
 
-except Exception as e:
-    st.caption("Esperando apertura de BYMA para sincronizar spreads...")
+except:
+    st.caption("Esperando apertura de mercado para sincronizar spreads...")
