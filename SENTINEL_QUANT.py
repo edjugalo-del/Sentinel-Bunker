@@ -97,24 +97,11 @@ for t in tickers:
             "ATTN": atn,
             "P&L %": f"{pnl_pct:+.2f}%",
             "SUGERENCIA": fmt_money(st.session_state.liq * 0.15),
-            "val_post": post # para la nota
-        })
-    except: continue
+          except: continue
 
 df_final = pd.DataFrame(results)
 
-# --- 🖥️ INTERFACE V150 ---
-st.title("🛰️ SENTINEL V150 | Institutional Fortress")
-
-# --- NOTA DEL CFO REFORZADA (FIX V151) ---
-def generar_nota(df, dxy, brent):
-    # Verificamos si la columna existe para evitar el KeyError
-    if 'val_post' in df.columns:
-        conf_avg = df['val_post'].mean()
-    else:
- # --- 🖥️ INTERFACE ÚNICA V160 (FIX FINAL) ---
-df_final = pd.DataFrame(results)
-
+# --- 🖥️ INTERFACE ÚNICA V160 (FIX FINAL) ---
 st.title("🛰️ SENTINEL V160 | Institutional Fortress")
 
 # 1. NOTA DEL CFO (Rationale)
@@ -124,7 +111,8 @@ try:
 except: d_n, b_n = 104.5, 95.0
 
 def generar_nota(df, dxy, brent):
-    c_avg = df['val_post'].mean() if 'val_post' in df.columns else 0.5
+    # Verificación segura de la columna val_post
+    c_avg = df['val_post'].mean() if (not df.empty and 'val_post' in df.columns) else 0.5
     if dxy > 105.5: return "⚠️ DEFENSA: Dólar Global (DXY) fuerte. Presión en commodities."
     if brent > 94.0 and c_avg > 0.70: return "🔥 ATAQUE: Brent firme arriba de $94. Inferencia Bayesiana valida momentum alcista."
     return "⌛ NEUTRAL: Mercado lateral. Esperando confirmación de volumen."
@@ -141,7 +129,7 @@ with c3: st.metric("Dólar DXY", f"{d_n:.2f}", delta="ALERTA" if d_n > 105 else 
 # 3. TABLA DE OPERACIONES
 st.subheader("🎯 Radar de Convergencia & P&L")
 
-if not df_final.empty and len(results) > 0:
+if not df_final.empty:
     cols_v = ["ACTIVO", "ACCIÓN", "CONFIDENCIA", "ATTN", "P&L %", "P&L NETO", "SUGERENCIA"]
     safe_c = [c for c in cols_v if c in df_final.columns]
     st.dataframe(df_final[safe_c].style.map(
@@ -194,5 +182,5 @@ try:
         lambda x: 'color: #76FF03' if "COMPRAR" in str(x) else 'color: #FF1744' if "VENDER" in str(x) else '',
         subset=['ESTADO']), use_container_width=True, hide_index=True)
 except:
-    st.caption("Esperando apertura de mercado para sincronizar spreads...")
+    st.caption("Esperando apertura de mercado...")
 
