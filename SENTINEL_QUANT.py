@@ -121,10 +121,10 @@ with c1: st.metric("Riesgo Monte Carlo (VAR 5%)", fmt_money(worst), delta=f"-{((
 with c2: st.metric("Potencial Upside (95%)", fmt_money(best))
 with c3: st.metric("Dólar DXY", f"{dxy_now:.2f}", delta="ALERTA" if dxy_now > 105 else "CALMA", delta_color="inverse")
 
+# --- 🖥️ TABLA DE OPERACIONES ÚNICA ---
 st.subheader("🎯 Radar de Convergencia & P&L")
 
 if not df_final.empty:
-    # Definimos columnas visibles
     cols_visibles = ["ACTIVO", "ACCIÓN", "CONFIDENCIA", "ATTN", "P&L %", "P&L NETO", "SUGERENCIA"]
     safe_cols = [c for c in cols_visibles if c in df_final.columns]
     
@@ -133,15 +133,12 @@ if not df_final.empty:
         subset=[c for c in ["ACCIÓN", "P&L %", "P&L NETO"] if c in safe_cols]
     ), use_container_width=True, hide_index=True)
 else:
-    st.info("🛰️ Sincronizando flujos de datos... El radar se activará en breve.")
+    st.info("🛰️ Sincronizando datos de mercado... El radar se activará en breve.")
 
-
-
-# --- 🌐 GLOBAL MACRO & ARBITRAGE ---
+# --- 🌐 GLOBAL MACRO & ARBITRAGE (ASEGÚRATE QUE ESTO ESTÉ DEBAJO) ---
 st.write("---")
 st.markdown("### 🌐 Alerta Temprana & Global Macro")
-global_t = {'DX-Y.NYB': 'DXY', 'BZ=F': 'BRENT', 'GC=F': 'ORO', 'BTC-USD': 'BITCOIN'}
-cols = st.columns(len(global_t))
+
 
 for i, (gt, name) in enumerate(global_t.items()):
     try:
