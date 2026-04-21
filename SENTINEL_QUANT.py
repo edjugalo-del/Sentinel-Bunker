@@ -171,7 +171,7 @@ for i, (ticker, nombre) in enumerate(global_dict.items()):
         with cols_macro[i]:
             st.metric(nombre, f"{p_actual:,.2f}")
             st.code(f"{trend(5)} | {trend(21)} | {trend(63)}")
-    except: continue
+except: continue
 
         st.warning("⚠️ BYMA Offline - Usando último cierre conocido")
 except Exception as e:
