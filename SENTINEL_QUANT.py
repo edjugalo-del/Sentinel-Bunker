@@ -123,14 +123,19 @@ with c3: st.metric("Dólar DXY", f"{dxy_now:.2f}", delta="ALERTA" if dxy_now > 1
 
 st.subheader("🎯 Radar de Convergencia & P&L")
 
-# --- SELECCIÓN SEGURA DE COLUMNAS ---
-columnas_visibles = ["ACTIVO", "ACCIÓN", "CONFIDENCIA", "ATTN", "P&L %", "P&L NETO", "SUGERENCIA"]
-cols_ok = [c for c in columnas_visibles if c in df_final.columns]
+if not df_final.empty:
+    # Definimos solo las columnas que queremos que el ojo vea
+    cols_visibles = ["ACTIVO", "ACCIÓN", "CONFIDENCIA", "ATTN", "P&L %", "P&L NETO", "SUGERENCIA"]
+    # Filtro de seguridad por si alguna columna falló en el cálculo
+    safe_cols = [c for c in cols_visibles if c in df_final.columns]
+    
+    st.dataframe(df_final[safe_cols].style.map(
+        lambda x: 'color: #76FF03' if any(word in str(x) for word in ["+", "COMPRA"]) else 'color: #FF1744' if any(word in str(x) for word in ["-", "FILTRAR"]) else '',
+        subset=[c for c in ["ACCIÓN", "P&L %", "P&L NETO"] if c in safe_cols]
+    ), use_container_width=True, hide_index=True)
+else:
+    st.info("🛰️ Sincronizando flujos de datos... El radar se activará en breve.")
 
-st.dataframe(df_final[cols_ok].style.map(
-    lambda x: 'color: #76FF03' if "+" in str(x) or "COMPRA" in str(x) else 'color: #FF1744' if "-" in str(x) or "FILTRAR" in str(x) else '',
-    subset=[c for c in ["ACCIÓN", "P&L %", "P&L NETO"] if c in cols_ok]
-), use_container_width=True, hide_index=True)
 
 
 # --- 🌐 GLOBAL MACRO & ARBITRAGE ---
