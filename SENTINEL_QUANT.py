@@ -135,33 +135,25 @@ if not df_final.empty:
 else:
     st.info("🛰️ Sincronizando datos de mercado... El radar se activará en breve.")
 
-# --- 🌐 GLOBAL MACRO & ARBITRAGE (ASEGÚRATE QUE ESTO ESTÉ DEBAJO) ---
+# --- 🌐 GLOBAL MACRO & ARBITRAGE MONITOR ---
 st.write("---")
 st.markdown("### 🌐 Alerta Temprana & Global Macro")
 
+# Diccionario de tickers globales robusto
+global_dict = {'DX-Y.NYB': 'DXY', 'BZ=F': 'BRENT', 'GC=F': 'ORO', 'BTC-USD': 'BITCOIN'}
+cols_macro = st.columns(len(global_dict))
 
-for i, (gt, name) in enumerate(global_t.items()):
+for i, (ticker, nombre) in enumerate(global_dict.items()):
     try:
-        g_hist = yf.Ticker(gt).history(period="50d")['Close']
-        p_now = g_hist.iloc[-1]
-        def get_t(days): return "🔼" if p_now > g_hist.iloc[-days] else "🔽"
-        with cols[i]:
-            st.metric(name, f"{p_now:,.2f}")
-            st.code(f"5D: {get_t(5)} | 21D: {get_t(21)}")
-    except: continue
-
-st.subheader("🎯 Radar de Convergencia & P&L")
-
-# Lista simplificada para asegurar visibilidad
-cols_finales = [c for c in df_final.columns if c != 'val_post']
-
-if not df_final.empty:
-    st.dataframe(df_final[cols_finales].style.map(
-        lambda x: 'color: #76FF03' if any(word in str(x) for word in ["+", "COMPRA"]) else 'color: #FF1744' if any(word in str(x) for word in ["-", "FILTRAR"]) else '',
-        subset=[c for c in ["ACCIÓN", "P&L %", "P&L NETO"] if c in df_final.columns]
-    ), use_container_width=True, hide_index=True)
-else:
-    st.warning("🛰️ Sincronizando datos de mercado... Reintentando fetch.")
+        m_hist = yf.Ticker(ticker).history(period="50d")['Close']
+        if not m_hist.empty:
+            p_actual = m_hist.iloc[-1]
+            def trend(d): return "🔼" if p_actual > m_hist.iloc[-d] else "🔽"
+            with cols_macro[i]:
+                st.metric(nombre, f"{p_actual:,.2f}")
+                st.code(f"5D: {trend(5)} | 21D: {trend(21)}")
+    except:
+        with cols_macro[i]: st.caption(f"{nombre}: ⌛ Sync")
 
 # --- 🎯 DETECTOR DE DESARBITRAJE REAL ---
 st.write("---")
@@ -169,31 +161,28 @@ st.subheader("🎯 Detector de Desarbitraje CEDEARs")
 
 try:
     # Calculamos CCL usando GGAL (Ratio 10:1)
-    ggal_l = yf.Ticker("GGAL.BA").history(period="2d")['Close']
-    ggal_a = yf.Ticker("GGAL").history(period="2d")['Close']
+    gl = yf.Ticker("GGAL.BA").history(period="2d")['Close']
+    ga = yf.Ticker("GGAL").history(period="2d")['Close']
     
-    if not ggal_l.empty and not ggal_a.empty:
-        ccl_real = (ggal_l.iloc[-1] * 10) / ggal_a.iloc[-1]
-        st.info(f"💵 **Dólar CCL Sentinel:** ${ccl_real:.2f}")
+    if not gl.empty and not ga.empty:
+        ccl_val = (gl.iloc[-1] * 10) / ga.iloc[-1]
+        st.info(f"💵 **Dólar CCL Sentinel:** ${ccl_val:.2f}")
 
         # Ejemplo NVDA (Ratio 48:1)
-        n_a = yf.Ticker("NVDA").history(period="2d")['Close']
-        n_l = yf.Ticker("NVDA.BA").history(period="2d")['Close']
+        na = yf.Ticker("NVDA").history(period="2d")['Close']
+        nl = yf.Ticker("NVDA.BA").history(period="2d")['Close']
         
-        if not n_a.empty and not n_l.empty:
-            p_teorico = (n_a.iloc[-1] * ccl_real) / 48 
-            spread = ((n_l.iloc[-1] - p_teorico) / p_teorico) * 100
+        if not na.empty and not nl.empty:
+            teorico = (na.iloc[-1] * ccl_val) / 48 
+            sprd = ((nl.iloc[-1] - teorico) / teorico) * 100
 
-            c_arb1, c_arb2 = st.columns(2)
-            with c_arb1:
-                st.metric("NVDA Spread", f"{spread:+.2f}%")
-            with c_arb2:
-                if abs(spread) > 1.2:
-                    st.error(f"🔥 OPORTUNIDAD: {'VENDER' if spread > 0 else 'COMPRAR'}")
-                else:
-                    st.success("✅ Arbitraje en Equilibrio")
+            ca1, ca2 = st.columns(2)
+            with ca1: st.metric("NVDA Spread", f"{sprd:+.2f}%")
+            with ca2:
+                if abs(sprd) > 1.2:
+                    st.error(f"🔥 OPORTUNIDAD: {'VENDER' if sprd > 0 else 'COMPRAR'}")
+                else: st.success("✅ Arbitraje en Equilibrio")
     else:
-        st.caption("Esperando apertura de mercado para cálculos...")
+        st.caption("Esperando flujos de BYMA para arbitraje...")
 except Exception as e:
-    st.caption("Sincronizando flujos de BYMA...")
-
+    st.caption("Sincronizando datos de mercado...")
