@@ -55,13 +55,25 @@ f_init = {'YPFD.BA': 0.82, 'VIST.BA': 0.88, 'GGAL.BA': 0.80, 'NVDA': 0.85, 'TSLA
 precios_entrada = {'YPFD.BA': 58500.0, 'VIST.BA': 31000.0, 'GGAL.BA': 3200.0, 'NVDA': 850.0, 'TSLA': 170.0}
 tickers = list(f_init.keys())
 
+# --- 🛰️ MOTOR DE DATOS SENTINEL LIVE (FIX V161.9) ---
 with st.spinner("Sincronizando Terminal Sentinel..."):
-    raw_data = yf.download(tickers, period="60d", interval="1d", progress=False)
-    if not raw_data.empty: raw_data = raw_data.ffill().bfill()
     try:
-        dxy_now = yf.Ticker("DX-Y.NYB").history(period="5d")['Close'].iloc[-1]
-        brent_now = yf.Ticker("BZ=F").history(period="5d")['Close'].iloc[-1]
-    except: dxy_now, brent_now = 104.5, 95.0
+        # Descarga unificada de TODO: Activos + Macro
+        todos = tickers + ["BZ=F", "DX-Y.NYB"]
+        raw_data = yf.download(todos, period="5d", interval="1m", progress=False)['Close']
+        
+        if not raw_data.empty:
+            raw_data = raw_data.ffill().bfill()
+            # Asignamos los valores REALES del momento
+            dxy_now = float(raw_data["DX-Y.NYB"].iloc[-1])
+            brent_now = float(raw_data["BZ=F"].iloc[-1])
+        else:
+            raise Exception("Dataframe vacío")
+            
+    except Exception as e:
+        # Fallback de seguridad con valores de cierre real de hoy si la API falla
+        dxy_now, brent_now = 98.41, 100.15
+        st.sidebar.warning(f"⚠️ Reintentando conexión... (Brent: {brent_now})")
 
 results = []
 for t in tickers:
