@@ -137,59 +137,54 @@ for i, (ticker, nombre) in enumerate(global_dict.items()):
     except: continue
 
 st.write("---")
-# --- 🎯 MONITOR DE ARBITRAJE CON FILTRO DE CORDURA (V161) ---
+# --- 🎯 MONITOR DE ARBITRAJE QUIRÚRGICO (V161.1) ---
 st.write("---")
-st.subheader("🎯 Detector de Desarbitraje CEDEARs")
+st.subheader("🎯 Detector de Desarbitraje en Tiempo Real")
+
 try:
     # 1. Dólar Sentinel (CCL Promedio GGAL)
-    gl_h = yf.Ticker("GGAL.BA").history(period="5d")['Close']
-    ga_h = yf.Ticker("GGAL").history(period="5d")['Close']
+    gl_h = yf.Ticker("GGAL.BA").history(period="2d")['Close']
+    ga_h = yf.Ticker("GGAL").history(period="2d")['Close']
     
     if not gl_h.empty and not ga_h.empty:
         ccl_s = (gl_h.iloc[-1] * 10) / ga_h.iloc[-1]
         st.info(f"💵 **Dólar CCL Referencia:** ${ccl_s:.2f}")
 
-        ratios = {'NVDA': 48, 'TSLA': 15, 'AAPL': 10, 'VIST': 1, 'AMZN': 144, 'META': 24}
+        # --- 🛡️ RATIOS ACTUALIZADOS (VIST es 3:1) ---
+        ratios = {'VIST': 3, 'YPF': 2, 'NVDA': 48, 'TSLA': 15, 'AAPL': 10}
         arb_res = []
         
         for t_u, ratio in ratios.items():
             try:
                 t_l = f"{t_u}.BA" if t_u != 'VIST' else 'VIST.BA'
-                p_u = yf.Ticker(t_u).history(period="5d")['Close'].iloc[-1]
-                p_l = yf.Ticker(t_l).history(period="5d")['Close'].iloc[-1]
+                # Forzamos 1m de intervalo para capturar el post-market/pre-market
+                p_u = yf.Ticker(t_u).history(period="1d", interval="1m")['Close'].iloc[-1]
+                p_l = yf.Ticker(t_l).history(period="1d", interval="1m")['Close'].iloc[-1]
                 
                 p_t = (p_u * ccl_s) / ratio
                 sprd = ((p_l - p_t) / p_t) * 100
                 
-                # --- 🛡️ FILTRO DE CORDURA (Sanity Check) ---
-                # Si el spread es absurdo (>10% o <-10%), es error de data nocturna
-                if abs(sprd) > 10.0:
-                    estado = "⌛ FUERA DE RUEDA / DATA SYNC"
-                    color_status = "color: #757575" # Gris
-                else:
-                    if sprd < -1.2: 
-                        estado = "🔥 COMPRAR"
-                        color_status = "color: #76FF03" # Verde
-                    elif sprd > 1.2: 
-                        estado = "⚠️ VENDER"
-                        color_status = "color: #FF1744" # Rojo
-                    else: 
-                        estado = "✅ OK"
-                        color_status = "color: #FFFFFF" # Blanco
-                
+                # --- 🎯 SENSIBILIDAD SOLICITADA: 0.8% ---
+                if sprd < -0.8: # Antes 1.2, ahora 0.8
+                    estado = "🔥 COMPRA TÁCTICA"
+                    color = "color: #76FF03"
+                elif sprd > 0.8: 
+                    estado = "⚠️ VENTA / ARBITRAR"
+                    color = "color: #FF1744"
+                else: 
+                    estado = "✅ EQUILIBRIO"
+                    color = "color: #FFFFFF"
+
                 arb_res.append({
                     "ACTIVO": t_u, 
+                    "PRECIO NY": f"u$s {p_u:.2f}",
                     "SPREAD %": f"{sprd:+.2f}%", 
-                    "ESTADO": estado
+                    "ACCIÓN": estado
                 })
             except: continue
         
-        # Mostramos la tabla con el nuevo estado
-        st.dataframe(pd.DataFrame(arb_res).style.map(
-            lambda x: 'color: #76FF03' if "COMPRAR" in str(x) else 'color: #FF1744' if "VENDER" in str(x) else 'color: #757575' if "FUERA" in str(x) else '',
-            subset=['ESTADO']
-        ), use_container_width=True, hide_index=True)
+        st.table(pd.DataFrame(arb_res)) # Usamos table para evitar el "scroll" y ver todo de una
     else:
-        st.caption("Esperando flujos de BYMA...")
-except:
-    st.caption("Sincronizando flujos de arbitraje...")
+        st.warning("⚠️ BYMA Offline - Usando último cierre conocido")
+except Exception as e:
+    st.error(f"Error de Sincronización: {e}")
