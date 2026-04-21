@@ -95,12 +95,22 @@ df_final = pd.DataFrame(results)
 # --- 🖥️ INTERFACE V150 ---
 st.title("🛰️ SENTINEL V150 | Institutional Fortress")
 
-# NOTA DEL CFO (Rationale)
+# --- NOTA DEL CFO REFORZADA (FIX V151) ---
 def generar_nota(df, dxy, brent):
-    if dxy > 105.5: return "⚠️ DEFENSA: Dólar Global (DXY) fuerte. Presión en commodities. Reducir exposición."
-    if brent > 94.0 and df['val_post'].mean() > 0.75: return "🔥 ATAQUE: Brent firme arriba de $94. Inferencia Bayesiana valida momentum alcista."
-    if brent < 92.0: return "🚨 LIQUIDACIÓN: Brent rompió soporte de $92. Prioridad absoluta: Preservar capital."
+    # Verificamos si la columna existe para evitar el KeyError
+    if 'val_post' in df.columns:
+        conf_avg = df['val_post'].mean()
+    else:
+        conf_avg = 0.5 # Valor neutral por defecto si hay error de carga
+
+    if dxy > 105.5: 
+        return "⚠️ DEFENSA: Dólar Global (DXY) fuerte. Presión en commodities. Reducir exposición."
+    if brent > 94.0 and conf_avg > 0.75: 
+        return "🔥 ATAQUE: Brent firme arriba de $94. Inferencia Bayesiana valida momentum alcista."
+    if brent < 92.0: 
+        return "🚨 LIQUIDACIÓN: Brent rompió soporte de $92. Prioridad absoluta: Preservar capital."
     return "⌛ NEUTRAL: Mercado lateral. Esperando confirmación de volumen para promediar."
+
 
 st.chat_message("assistant").write(f"**Rationale Estratégico:** {generar_nota(df_final, dxy_now, brent_now)}")
 
