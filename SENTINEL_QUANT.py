@@ -132,62 +132,34 @@ with c1: st.metric("Riesgo Monte Carlo (VAR 5%)", fmt_money(worst), delta=f"-{((
 with c2: st.metric("Potencial Upside (95%)", fmt_money(best))
 with c3: st.metric("Dólar DXY", f"{dxy_now:.2f}", delta="ALERTA" if dxy_now > 105 else "CALMA", delta_color="inverse")
 
-# --- 🌐 GLOBAL MACRO & FRACTAL MONITOR (V158) ---
-st.write("---")
-st.markdown("### 🌐 Alerta Temprana & Fractal Global")
+# --- 🖥️ INTERFACE V160 (ESTRUCTURA FINAL) ---
+df_final = pd.DataFrame(results)
 
-global_dict = {'DX-Y.NYB': 'DXY', 'BZ=F': 'BRENT', 'GC=F': 'ORO', 'BTC-USD': 'BITCOIN'}
-cols_macro = st.columns(len(global_dict))
+st.title("🛰️ SENTINEL V160 | Institutional Fortress")
 
-for i, (ticker, nombre) in enumerate(global_dict.items()):
-    try:
-        # 100 días para asegurar el ciclo de 63 (Trimestral)
-        m_hist = yf.Ticker(ticker).history(period="100d")['Close']
-        if not m_hist.empty:
-            p_actual = m_hist.iloc[-1]
-            # Función Fractal: 5 (Semana), 21 (Mes), 63 (Trimestre)
-            def trend(d): return "🔼" if p_actual > m_hist.iloc[-d] else "🔽"
-            with cols_macro[i]:
-                st.metric(nombre, f"{p_actual:,.2f}")
-                st.code(f"{trend(5)} | {trend(21)} | {trend(63)}")
-    except:
-        with cols_macro[i]: st.caption(f"{nombre}: ⌛ Sync")
-
-# --- 🎯 MONITOR DE ARBITRAJE MULTI-ACTIVO ---
-st.write("---")
-st.subheader("🎯 Detector de Desarbitraje CEDEARs")
-
+# 1. NOTA DEL CFO (Rationale)
 try:
-    # 1. Dólar Sentinel (CCL Promedio GGAL)
-    gl = yf.Ticker("GGAL.BA").history(period="5d")['Close'].iloc[-1]
-    ga = yf.Ticker("GGAL").history(period="5d")['Close'].iloc[-1]
-    ccl_sentinel = (gl * 10) / ga
-    st.info(f"💵 **Dólar CCL Referencia:** ${ccl_sentinel:.2f}")
+    d_n = yf.Ticker("DX-Y.NYB").history(period="5d")['Close'].iloc[-1]
+    b_n = yf.Ticker("BZ=F").history(period="5d")['Close'].iloc[-1]
+except: d_n, b_n = 104.5, 95.0
 
-    # 2. Ratios y Tickers para Arbitraje (NVDA, TSLA, AAPL, VIST, AMZN, META)
-    ratios = {'NVDA': 48, 'TSLA': 15, 'AAPL': 10, 'VIST': 1, 'AMZN': 144, 'META': 24}
-    arbitraje_results = []
-    
-    for t_usa, ratio in ratios.items():
-        try:
-            t_loc = f"{t_usa}.BA" if t_usa != 'VIST' else 'VIST.BA'
-            p_usa = yf.Ticker(t_usa).history(period="5d")['Close'].iloc[-1]
-            p_loc = yf.Ticker(t_loc).history(period="5d")['Close'].iloc[-1]
-            
-            p_teorico = (p_usa * ccl_sentinel) / ratio
-            spread = ((p_loc - p_teorico) / p_teorico) * 100
-            
-            arbitraje_results.append({
-                "ACTIVO": t_usa,
-                "SPREAD %": f"{spread:+.2f}%",
-                "ESTADO": "🔥 COMPRAR" if spread < -1.2 else "⚠️ VENDER" if spread > 1.2 else "✅ OK"
-            })
-        except: continue
+def generar_nota(df, dxy, brent):
+    c_avg = df['val_post'].mean() if 'val_post' in df.columns else 0.5
+    if dxy > 105.5: return "⚠️ DEFENSA: Dólar Global (DXY) fuerte. Presión en commodities."
+    if brent > 94.0 and c_avg > 0.70: return "🔥 ATAQUE: Brent firme arriba de $94. Inferencia Bayesiana valida momentum alcista."
+    return "⌛ NEUTRAL: Mercado lateral. Esperando confirmación de volumen."
 
-    st.dataframe(pd.DataFrame(arbitraje_results).style.map(
-        lambda x: 'color: #76FF03' if "COMPRAR" in str(x) else 'color: #FF1744' if "VENDER" in str(x) else '',
-        subset=['ESTADO']
+st.chat_message("assistant").write(f"**Rationale Estratégico:** {generar_nota(df_final, d_n, b_n)}")
+
+# 2. TABLA DE OPERACIONES (Sincronización Inteligente)
+st.subheader("🎯 Radar de Convergencia & P&L")
+
+if not df_final.empty and len(results) > 0:
+    cols_v = ["ACTIVO", "ACCIÓN", "CONFIDENCIA", "ATTN", "P&L %", "P&L NETO", "SUGERENCIA"]
+    safe_c = [c for c in cols_v if c in df_final.columns]
+    st.dataframe(df_final[safe_c].style.map(
+        lambda x: 'color: #76FF03' if any(w in str(x) for w in ["+", "COMPRA"]) else 'color: #FF1744' if any(w in str(x) for word in ["-", "FILTRAR"]) else '',
+        subset=[c for c in ["ACCIÓN", "P&L %", "P&L NETO"] if c in safe_c]
     ), use_container_width=True, hide_index=True)
-
-except:
-    st.caption("Esperando apertura de mercado para sincronizar spreads...")
+else:
+    st.info("🛰️ Sincronizando datos de mercado... El radar se activará con el primer latido de la bolsa.")
