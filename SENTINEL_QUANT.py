@@ -122,10 +122,16 @@ with c2: st.metric("Potencial Upside (95%)", fmt_money(best))
 with c3: st.metric("Dólar DXY", f"{dxy_now:.2f}", delta="ALERTA" if dxy_now > 105 else "CALMA", delta_color="inverse")
 
 st.subheader("🎯 Radar de Convergencia & P&L")
-st.dataframe(df_final.drop(columns=['val_post']).style.map(
+
+# --- SELECCIÓN SEGURA DE COLUMNAS ---
+columnas_visibles = ["ACTIVO", "ACCIÓN", "CONFIDENCIA", "ATTN", "P&L %", "P&L NETO", "SUGERENCIA"]
+cols_ok = [c for c in columnas_visibles if c in df_final.columns]
+
+st.dataframe(df_final[cols_ok].style.map(
     lambda x: 'color: #76FF03' if "+" in str(x) or "COMPRA" in str(x) else 'color: #FF1744' if "-" in str(x) or "FILTRAR" in str(x) else '',
-    subset=['ACCIÓN', 'P&L %']
+    subset=[c for c in ["ACCIÓN", "P&L %", "P&L NETO"] if c in cols_ok]
 ), use_container_width=True, hide_index=True)
+
 
 # --- 🌐 GLOBAL MACRO & ARBITRAGE ---
 st.write("---")
