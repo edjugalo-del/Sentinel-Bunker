@@ -94,38 +94,45 @@ for t in tickers:
 
 df_final = pd.DataFrame(results)
 
-# --- 🖥️ INTERFACE ÚNICA V160 ---
-st.title("🛰️ SENTINEL V160 | Institutional Fortress")
+# --- 🖥️ INTERFACE SENTINEL V161.2 | ESTRATEGIA DE SHOCK ---
+st.title("🛰️ SENTINEL V161 | Institutional Fortress")
 
-def generar_nota(df, dxy, brent):
-    c_avg = df['val_post'].mean() if (not df.empty and 'val_post' in df.columns) else 0.5
-    if dxy > 105.5: return "⚠️ DEFENSA: DXY fuerte. Presión en commodities."
-    if brent > 94.0 and c_avg > 0.70: return "🔥 ATAQUE: Brent firme. Inferencia Bayesiana valida momentum."
-    return "⌛ NEUTRAL: Mercado lateral. Esperando volumen."
+# --- 🧠 RATIONALE ESTRATÉGICO DINÁMICO (FIX NOTA) ---
+def generar_nota_v161(dxy, brent):
+    # Priorizamos el Brent como driver de guerra
+    if brent > 98.0:
+        return "🔥 SHOCK DE OFERTA: Escenario de Guerra. Priorizar Energía (VIST/YPF).", "🚨"
+    if dxy > 105.5: 
+        return "⚠️ DEFENSA: DXY fuerte. Presión en commodities.", "🛡️"
+    if brent < 92.0:
+        return "🟢 ACUERDO DIPLOMÁTICO: Toma de ganancias en commodities sugerida.", "🕊️"
+    return "⌛ NEUTRAL: Mercado procesando datos de Islamabad.", "⚖️"
 
-st.chat_message("assistant").write(f"**Rationale Estratégico:** {generar_nota(df_final, dxy_now, brent_now)}")
+msg, icono = generar_nota_v161(dxy_now, brent_now)
+st.chat_message("assistant").write(f"**Rationale Estratégico:** {icono} {msg}")
 
+# --- 📊 MÉTRICAS DE RIESGO ---
 worst, best = run_monte_carlo(st.session_state.liq)
 c1, c2, c3 = st.columns(3)
 with c1: st.metric("Riesgo Monte Carlo (VAR 5%)", fmt_money(worst), delta=f"-{((st.session_state.liq-worst)/st.session_state.liq)*100:.1f}%")
 with c2: st.metric("Potencial Upside (95%)", fmt_money(best))
 with c3: st.metric("Dólar DXY", f"{dxy_now:.2f}", delta="ALERTA" if dxy_now > 105 else "CALMA", delta_color="inverse")
 
+# --- 🎯 RADAR DE CONVERGENCIA & P&L (ANTI-HIBERNACIÓN) ---
+st.write("---")
 st.subheader("🎯 Radar de Convergencia & P&L (SENTINEL V161)")
 
-# --- 🚀 BYPASS DE DATOS: CARGA FORZADA ---
 try:
-    # 1. Cálculo de Dólar Arbitraje (GGAL)
+    # 1. Cálculo de Dólar Arbitraje Forzado
     gl = yf.Ticker("GGAL.BA").history(period="2d")['Close'].iloc[-1]
     ga = yf.Ticker("GGAL").history(period="2d")['Close'].iloc[-1]
     ccl_v161 = (gl * 10) / ga
 
-    # 2. Reconstrucción del Radar en Tiempo Real
-    # Ratios: VIST (3:1), YPF (2:1), NVDA (48:1)
-    activos = {'VIST': 3, 'YPF': 2, 'NVDA': 48, 'TSLA': 15}
+    # 2. Monitor Quirúrgico (Sensibilidad 0.8%)
+    ratios = {'VIST': 3, 'YPF': 2, 'NVDA': 48, 'TSLA': 15}
     arb_data = []
 
-    for ticker, ratio in activos.items():
+    for ticker, ratio in ratios.items():
         t_l = f"{ticker}.BA" if ticker != 'VIST' else 'VIST.BA'
         p_u = yf.Ticker(ticker).history(period="1d")['Close'].iloc[-1]
         p_l = yf.Ticker(t_l).history(period="1d")['Close'].iloc[-1]
@@ -133,79 +140,39 @@ try:
         p_teo = (p_u * ccl_v161) / ratio
         sprd = ((p_l - p_teo) / p_teo) * 100
         
-        # --- 🎯 SENSIBILIDAD SOLICITADA: 0.8% ---
-        if sprd < -0.8: acc, sug = "🔥 COMPRA", "MANTENER POSICIÓN"
+        # Lógica de acción basada en el spread del 0.8%
+        if sprd < -0.8: acc, sug = "🔥 COMPRA", "ARBITRAJE A FAVOR"
         elif sprd > 0.8: acc, sug = "⚠️ VENTA", "TOMAR GANANCIA"
-        else: acc, sug = "✅ OK", "WAIT & WATCH"
+        else: acc, sug = "✅ OK", "MANTENER"
 
         arb_data.append({
-            "ACTIVO": ticker, "ACCIÓN": acc, "PRECIO NY": f"u$s {p_u:.2f}",
-            "TEÓRICO": f"${p_teo:,.0f}", "LOCAL": f"${p_l:,.0f}",
+            "ACTIVO": ticker, "ACCIÓN": acc, "NY (u$s)": f"{p_u:.2f}",
+            "TEÓRICO ($)": f"{p_teo:,.0f}", "LOCAL ($)": f"{p_l:,.0f}",
             "SPREAD": f"{sprd:+.2f}%", "SUGERENCIA": sug
         })
     
-    # Visualización forzada de la tabla
     st.table(pd.DataFrame(arb_data))
     st.success(f"🛰️ Radar Sincronizado (CCL: ${ccl_v161:.2f})")
 
 except Exception as e:
-    st.info(f"🛰️ Sincronizando datos... Error de Enlace: {e}")
+    st.error(f"🛰️ Error de Sincronización: {e}. Reintente en 1 minuto.")
 
+# --- 🌐 ALERTA TEMPRANA & FRACTAL GLOBAL ---
 st.write("---")
-# --- 🌐 ALERTA TEMPRANA (Mantenemos tu lógica de Fractales) ---
 st.markdown("### 🌐 Alerta Temprana & Fractal Global")
-# ... resto de tu código de columnas macro ...
+global_dict = {'DX-Y.NYB': 'DXY', 'BZ=F': 'BRENT', 'GC=F': 'ORO', 'BTC-USD': 'BITCOIN'}
+cols_macro = st.columns(len(global_dict))
 
+for i, (ticker, nombre) in enumerate(global_dict.items()):
+    try:
+        m_hist = yf.Ticker(ticker).history(period="100d")['Close']
+        p_actual = m_hist.iloc[-1]
+        def trend(d): return "🔼" if p_actual > m_hist.iloc[-d] else "🔽"
+        with cols_macro[i]:
+            st.metric(nombre, f"{p_actual:,.2f}")
+            st.code(f"{trend(5)} | {trend(21)} | {trend(63)}")
+    except: continue
 
-st.write("---")
-# --- 🎯 MONITOR DE ARBITRAJE QUIRÚRGICO (V161.1) ---
-st.write("---")
-st.subheader("🎯 Detector de Desarbitraje en Tiempo Real")
-
-try:
-    # 1. Dólar Sentinel (CCL Promedio GGAL)
-    gl_h = yf.Ticker("GGAL.BA").history(period="2d")['Close']
-    ga_h = yf.Ticker("GGAL").history(period="2d")['Close']
-    
-    if not gl_h.empty and not ga_h.empty:
-        ccl_s = (gl_h.iloc[-1] * 10) / ga_h.iloc[-1]
-        st.info(f"💵 **Dólar CCL Referencia:** ${ccl_s:.2f}")
-
-        # --- 🛡️ RATIOS ACTUALIZADOS (VIST es 3:1) ---
-        ratios = {'VIST': 3, 'YPF': 2, 'NVDA': 48, 'TSLA': 15, 'AAPL': 10}
-        arb_res = []
-        
-        for t_u, ratio in ratios.items():
-            try:
-                t_l = f"{t_u}.BA" if t_u != 'VIST' else 'VIST.BA'
-                # Forzamos 1m de intervalo para capturar el post-market/pre-market
-                p_u = yf.Ticker(t_u).history(period="1d", interval="1m")['Close'].iloc[-1]
-                p_l = yf.Ticker(t_l).history(period="1d", interval="1m")['Close'].iloc[-1]
-                
-                p_t = (p_u * ccl_s) / ratio
-                sprd = ((p_l - p_t) / p_t) * 100
-                
-                # --- 🎯 SENSIBILIDAD SOLICITADA: 0.8% ---
-                if sprd < -0.8: # Antes 1.2, ahora 0.8
-                    estado = "🔥 COMPRA TÁCTICA"
-                    color = "color: #76FF03"
-                elif sprd > 0.8: 
-                    estado = "⚠️ VENTA / ARBITRAR"
-                    color = "color: #FF1744"
-                else: 
-                    estado = "✅ EQUILIBRIO"
-                    color = "color: #FFFFFF"
-
-                arb_res.append({
-                    "ACTIVO": t_u, 
-                    "PRECIO NY": f"u$s {p_u:.2f}",
-                    "SPREAD %": f"{sprd:+.2f}%", 
-                    "ACCIÓN": estado
-                })
-            except: continue
-        
-        st.table(pd.DataFrame(arb_res)) # Usamos table para evitar el "scroll" y ver todo de una
-    else:
         st.warning("⚠️ BYMA Offline - Usando último cierre conocido")
 except Exception as e:
     st.error(f"Error de Sincronización: {e}")
