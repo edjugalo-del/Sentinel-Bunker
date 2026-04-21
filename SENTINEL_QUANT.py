@@ -137,23 +137,59 @@ for i, (ticker, nombre) in enumerate(global_dict.items()):
     except: continue
 
 st.write("---")
+# --- 🎯 MONITOR DE ARBITRAJE CON FILTRO DE CORDURA (V161) ---
+st.write("---")
 st.subheader("🎯 Detector de Desarbitraje CEDEARs")
 try:
-    gl = yf.Ticker("GGAL.BA").history(period="5d")['Close'].iloc[-1]
-    ga = yf.Ticker("GGAL").history(period="5d")['Close'].iloc[-1]
-    ccl_s = (gl * 10) / ga
-    st.info(f"💵 **Dólar CCL Referencia:** ${ccl_s:.2f}")
-    ratios = {'NVDA': 48, 'TSLA': 15, 'AAPL': 10, 'VIST': 1}
-    arb_res = []
-    for t_u, ratio in ratios.items():
-        try:
-            t_l = f"{t_u}.BA" if t_u != 'VIST' else 'VIST.BA'
-            p_u = yf.Ticker(t_u).history(period="5d")['Close'].iloc[-1]
-            p_l = yf.Ticker(t_l).history(period="5d")['Close'].iloc[-1]
-            p_t = (p_u * ccl_s) / ratio
-            sprd = ((p_l - p_t) / p_t) * 100
-            arb_res.append({"ACTIVO": t_u, "SPREAD %": f"{sprd:+.2f}%", "ESTADO": "🔥 COMPRAR" if sprd < -1.2 else "⚠️ VENDER" if sprd > 1.2 else "✅ OK"})
-        except: continue
-    st.dataframe(pd.DataFrame(arb_res), use_container_width=True, hide_index=True)
-except: st.caption("Esperando apertura...")
+    # 1. Dólar Sentinel (CCL Promedio GGAL)
+    gl_h = yf.Ticker("GGAL.BA").history(period="5d")['Close']
+    ga_h = yf.Ticker("GGAL").history(period="5d")['Close']
+    
+    if not gl_h.empty and not ga_h.empty:
+        ccl_s = (gl_h.iloc[-1] * 10) / ga_h.iloc[-1]
+        st.info(f"💵 **Dólar CCL Referencia:** ${ccl_s:.2f}")
 
+        ratios = {'NVDA': 48, 'TSLA': 15, 'AAPL': 10, 'VIST': 1, 'AMZN': 144, 'META': 24}
+        arb_res = []
+        
+        for t_u, ratio in ratios.items():
+            try:
+                t_l = f"{t_u}.BA" if t_u != 'VIST' else 'VIST.BA'
+                p_u = yf.Ticker(t_u).history(period="5d")['Close'].iloc[-1]
+                p_l = yf.Ticker(t_l).history(period="5d")['Close'].iloc[-1]
+                
+                p_t = (p_u * ccl_s) / ratio
+                sprd = ((p_l - p_t) / p_t) * 100
+                
+                # --- 🛡️ FILTRO DE CORDURA (Sanity Check) ---
+                # Si el spread es absurdo (>10% o <-10%), es error de data nocturna
+                if abs(sprd) > 10.0:
+                    estado = "⌛ FUERA DE RUEDA / DATA SYNC"
+                    color_status = "color: #757575" # Gris
+                else:
+                    if sprd < -1.2: 
+                        estado = "🔥 COMPRAR"
+                        color_status = "color: #76FF03" # Verde
+                    elif sprd > 1.2: 
+                        estado = "⚠️ VENDER"
+                        color_status = "color: #FF1744" # Rojo
+                    else: 
+                        estado = "✅ OK"
+                        color_status = "color: #FFFFFF" # Blanco
+                
+                arb_res.append({
+                    "ACTIVO": t_u, 
+                    "SPREAD %": f"{sprd:+.2f}%", 
+                    "ESTADO": estado
+                })
+            except: continue
+        
+        # Mostramos la tabla con el nuevo estado
+        st.dataframe(pd.DataFrame(arb_res).style.map(
+            lambda x: 'color: #76FF03' if "COMPRAR" in str(x) else 'color: #FF1744' if "VENDER" in str(x) else 'color: #757575' if "FUERA" in str(x) else '',
+            subset=['ESTADO']
+        ), use_container_width=True, hide_index=True)
+    else:
+        st.caption("Esperando flujos de BYMA...")
+except:
+    st.caption("Sincronizando flujos de arbitraje...")
