@@ -157,8 +157,8 @@ try:
 except Exception as e:
     st.error(f"🛰️ Error de Sincronización: {e}. Reintente en 1 minuto.")
 
-# --- 🌐 ALERTA TEMPRANA & FRACTAL GLOBAL ---
 st.write("---")
+# --- 🌐 ALERTA TEMPRANA & FRACTAL GLOBAL ---
 st.markdown("### 🌐 Alerta Temprana & Fractal Global")
 global_dict = {'DX-Y.NYB': 'DXY', 'BZ=F': 'BRENT', 'GC=F': 'ORO', 'BTC-USD': 'BITCOIN'}
 cols_macro = st.columns(len(global_dict))
@@ -171,8 +171,37 @@ for i, (ticker, nombre) in enumerate(global_dict.items()):
         with cols_macro[i]:
             st.metric(nombre, f"{p_actual:,.2f}")
             st.code(f"{trend(5)} | {trend(21)} | {trend(63)}")
-except: continue
+    except:
+        continue
 
-        st.warning("⚠️ BYMA Offline - Usando último cierre conocido")
+# --- 🎯 MONITOR DE ARBITRAJE FINAL ---
+st.write("---")
+st.subheader("🎯 Detector de Desarbitraje en Tiempo Real")
+
+try:
+    gl_h = yf.Ticker("GGAL.BA").history(period="2d")['Close']
+    ga_h = yf.Ticker("GGAL").history(period="2d")['Close']
+    
+    if not gl_h.empty and not ga_h.empty:
+        ccl_s = (gl_h.iloc[-1] * 10) / ga_h.iloc[-1]
+        st.info(f"💵 **Dólar CCL Referencia:** ${ccl_s:.2f}")
+        
+        ratios = {'VIST': 3, 'YPF': 2, 'NVDA': 48, 'TSLA': 15, 'AAPL': 10}
+        arb_res = []
+        
+        for t_u, ratio in ratios.items():
+            try:
+                t_l = f"{t_u}.BA" if t_u != 'VIST' else 'VIST.BA'
+                p_u = yf.Ticker(t_u).history(period="1d", interval="1m")['Close'].iloc[-1]
+                p_l = yf.Ticker(t_l).history(period="1d", interval="1m")['Close'].iloc[-1]
+                p_t = (p_u * ccl_s) / ratio
+                sprd = ((p_l - p_t) / p_t) * 100
+                
+                estado = "🔥 COMPRA" if sprd < -0.8 else "⚠️ VENTA" if sprd > 0.8 else "✅ OK"
+                arb_res.append({"ACTIVO": t_u, "SPREAD %": f"{sprd:+.2f}%", "ACCIÓN": estado})
+            except: continue
+        st.table(pd.DataFrame(arb_res))
+    else:
+        st.warning("⚠️ BYMA Offline - Usando último cierre")
 except Exception as e:
     st.error(f"Error de Sincronización: {e}")
