@@ -124,9 +124,8 @@ with c3: st.metric("Dólar DXY", f"{dxy_now:.2f}", delta="ALERTA" if dxy_now > 1
 st.subheader("🎯 Radar de Convergencia & P&L")
 
 if not df_final.empty:
-    # Definimos solo las columnas que queremos que el ojo vea
+    # Definimos columnas visibles
     cols_visibles = ["ACTIVO", "ACCIÓN", "CONFIDENCIA", "ATTN", "P&L %", "P&L NETO", "SUGERENCIA"]
-    # Filtro de seguridad por si alguna columna falló en el cálculo
     safe_cols = [c for c in cols_visibles if c in df_final.columns]
     
     st.dataframe(df_final[safe_cols].style.map(
