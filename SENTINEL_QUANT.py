@@ -91,66 +91,81 @@ with c1: st.metric("Riesgo Monte Carlo (VAR 5%)", fmt_money(worst), delta=f"-{((
 with c2: st.metric("Potencial Upside (95%)", fmt_money(best))
 with c3: st.metric("Dólar DXY", f"{dxy_now:.2f}", delta="ALERTA" if dxy_now > 105 else "CALMA", delta_color="inverse")
 
-# --- 🛰️ RADAR DE INCONGRUENCIAS (V162 - FRACTAL & ARBITRAGE) ---
+# --- 📊 SENTINEL V162: GESTIÓN DE FLOTA AUTÓNOMA (Línea 95) ---
 st.write("---")
-st.subheader("🛰️ Radar de Incongruencias (Sensibilidad 0.8%)")
+st.subheader("📊 Panel de Control Autónomo (Live Intelligence)")
+
+# El sistema deducirá el ratio y la probabilidad solo con el ticker
+tickers_flota = ['YPFD.BA', 'VIST.BA', 'PAMP.BA', 'DICP.BA']
 
 try:
-    # 1. Cálculo de Dólar de Referencia (Ancla GGAL)
+    # 1. Dólar de Arbitraje Real (Ancla GGAL)
     gl_v = yf.Ticker("GGAL.BA").history(period="2d")['Close'].iloc[-1]
     ga_v = yf.Ticker("GGAL").history(period="2d")['Close'].iloc[-1]
     ccl_v = (gl_v * 10) / ga_v
 
-    # 2. Configuración de Activos y Ratios (VIST 3:1, YPF 2:1)
-    activos_radar = {'VIST': 3, 'YPF': 2, 'NVDA': 48, 'TSLA': 15}
-    cols = st.columns(len(activos_radar))
+    flota_res = []
     
-    for i, (ticker, ratio) in enumerate(activos_radar.items()):
+    for t_l in tickers_flota:
         try:
-            t_l = f"{ticker}.BA" if ticker != 'VIST' else 'VIST.BA'
-            # Datos para Fractales (Corto, Mediano y Largo Plazo)
-            h = yf.Ticker(ticker).history(period="100d")
-            p_u = h['Close'].iloc[-1]
+            # A. Descarga de Datos (Análisis de tendencia y fractales)
+            h_l = yf.Ticker(t_l).history(period="100d")
+            cp_l = h_l['Close'].iloc[-1]
             
-            # Cálculo de Arbitraje Real
-            p_l = yf.Ticker(t_l).history(period="1d")['Close'].iloc[-1]
-            p_t = (p_u * ccl_v) / ratio
-            sprd = ((p_l - p_t) / p_t) * 100
+            # B. Identificación de ADR y Deducción Automática de Ratio
+            t_u = t_l.replace('D.BA', '').replace('.BA', '')
+            if t_l == 'VIST.BA': t_u = 'VIST'
             
-            # --- Lógica de Fractales (Cuadraditos de Fuerza) ---
-            f5 = "🟦" if p_u > h['Close'].iloc[-5] else "⬜"
-            f21 = "🟦" if p_u > h['Close'].iloc[-21] else "⬜"
-            f63 = "🟦" if p_u > h['Close'].iloc[-63] else "⬜"
-            
-            with cols[i]:
-                st.markdown(f"### {ticker}")
-                
-                # Acción Directa basada en tu pedido de 0.8%
-                if sprd < -0.8: st.error("🔥 COMPRA")
-                elif sprd > 0.8: st.warning("⚠️ VENTA")
-                else: st.success("✅ OK")
-                
-                # Visualización de Fractales
-                st.code(f"{f5} {f21} {f63}")
-                
-                # Datos Críticos
-                st.metric("Spread", f"{sprd:+.2f}%")
-                st.caption(f"Teórico: ${p_t:,.0f}")
-                
-        except:
-            with cols[i]: st.caption(f"{ticker} ⌛ Sincronizando...")
+            try:
+                p_u = yf.Ticker(t_u).fast_info['last_price']
+                ratio_auto = round((p_u * ccl_v) / cp_l)
+                p_t = (p_u * ccl_v) / ratio_auto
+                sprd = ((cp_l - p_t) / p_t) * 100
+            except:
+                p_u, ratio_auto, p_t, sprd = None, 1, cp_l, 0.0
 
-    st.info(f"💵 Dólar Arbitraje Sentinel: ${ccl_v:.2f}")
+            # C. Métricas de Fuerza (RSI & Volumen)
+            delta = h_l['Close'].diff()
+            gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+            loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+            rsi = 100 - (100 / (1 + (gain.iloc[-1] / loss.iloc[-1])))
+            vol_attn = h_l['Volume'].iloc[-1] / h_l['Volume'].mean()
+
+            # D. Probabilidad IA & Kelly (Dinámico por volumen y Brent)
+            # La probabilidad se ajusta sola según el mercado
+            prob_ia = 0.5 + (0.15 if vol_attn > 1.1 else 0) + (0.15 if brent_now > 98 else -0.1)
+            prob_ia = min(0.99, max(0.1, prob_ia))
+            kelly_f = max(0, (prob_ia - (1 - prob_ia)))
+            sug_inv = st.session_state.liq * kelly_f * 0.4 # Kelly Fraccional
+
+            # E. Señal de Acción y Fractales
+            f5 = "🟦" if cp_l > h_l['Close'].iloc[-5] else "⬜"
+            f21 = "🟦" if cp_l > h_l['Close'].iloc[-21] else "⬜"
+            
+            if sprd < -0.8: acc, info = "🚀 ACECHAR COMPRA", "Desarbitraje (Barato)"
+            elif rsi > 75: acc, info = "⚠️ TOMAR GANANCIA", "Sobrecompra"
+            elif sprd > 0.8: acc, info = "⚖️ ARBITRAR VENTA", "Local caro"
+            else: acc, info = "⌛ MANTENER", "Tendencia Estable"
+
+            flota_res.append({
+                "ACTIVO": t_l,
+                "ACCIÓN": acc,
+                "FRACTAL": f"{f5}{f21}",
+                "RATIO": f"{ratio_auto}:1",
+                "CONFIDENCIA": f"{prob_ia*100:.0f}%",
+                "RSI": round(rsi, 1),
+                "SPREAD %": f"{sprd:+.2f}%",
+                "KELLY": f"{kelly_f*100:.1f}%",
+                "SUGERENCIA": f"${sug_inv:,.0f}",
+                "MOTIVO": info
+            })
+        except: continue
+
+    st.table(pd.DataFrame(flota_res))
+    st.info(f"💵 Dólar Arbitraje: ${ccl_v:.2f} | 🛡️ Motor Autónomo V162 Activo")
 
 except Exception as e:
-    st.warning("Sincronizando flujos de apertura...")
-
-    # RENDERIZADO FORZADO
-    st.table(pd.DataFrame(arb_res))
-    st.success(f"💵 Dólar Arbitraje Ref: ${ccl_v162:.2f}")
-
-except Exception as e:
-    st.error(f"🛰️ Error Crítico de Radar: {e}")
+    st.error(f"Error de Sincronización: {e}")
 
 
 # --- 🌐 ALERTA TEMPRANA & FRACTAL GLOBAL ---
