@@ -91,81 +91,68 @@ with c1: st.metric("Riesgo Monte Carlo (VAR 5%)", fmt_money(worst), delta=f"-{((
 with c2: st.metric("Potencial Upside (95%)", fmt_money(best))
 with c3: st.metric("Dólar DXY", f"{dxy_now:.2f}", delta="ALERTA" if dxy_now > 105 else "CALMA", delta_color="inverse")
 
-# --- 📊 SENTINEL V162: GESTIÓN DE FLOTA AUTÓNOMA (Línea 95) ---
+# --- 📊 SENTINEL V162: PANEL AUTÓNOMO 100% DINÁMICO (LIVE DATA) ---
 st.write("---")
 st.subheader("📊 Panel de Control Autónomo (Live Intelligence)")
 
-# El sistema deducirá el ratio y la probabilidad solo con el ticker
-tickers_flota = ['YPFD.BA', 'VIST.BA', 'PAMP.BA', 'DICP.BA']
-
 try:
-    # 1. Dólar de Arbitraje Real (Ancla GGAL)
-    gl_v = yf.Ticker("GGAL.BA").history(period="2d")['Close'].iloc[-1]
-    ga_v = yf.Ticker("GGAL").history(period="2d")['Close'].iloc[-1]
-    ccl_v = (gl_v * 10) / ga_v
-
-    flota_res = []
+    # 1. 🛰️ DESCARGA UNIFICADA (Bypass de Latencia)
+    # Bajamos Macro + Activos en un solo paquete para que todo el dashboard coincida
+    tickers_radar = ['YPFD.BA', 'VIST.BA', 'PAMP.BA', 'GGAL.BA', 'GGAL', 'BZ=F', 'VIST', 'YPF']
+    data_live = yf.download(tickers_radar, period="1d", interval="1m", progress=False)['Close']
     
-    for t_l in tickers_flota:
+    # 2. ACTUALIZACIÓN DE VARIABLES CRÍTICAS
+    brent_v162 = float(data_live["BZ=F"].iloc[-1])
+    ccl_v162 = (data_live["GGAL.BA"].iloc[-1] * 10) / data_live["GGAL"].iloc[-1]
+    
+    # 3. PROCESAMIENTO DE MATRIZ DE DECISIÓN
+    flota_res = []
+    activos_flota = ['YPFD.BA', 'VIST.BA', 'PAMP.BA']
+    
+    for t_l in activos_flota:
         try:
-            # A. Descarga de Datos (Análisis de tendencia y fractales)
+            # Precios en tiempo real
+            cp_l = data_live[t_l].iloc[-1]
+            t_u = 'VIST' if 'VIST' in t_l else 'YPF' if 'YPF' in t_l else None
+            
+            # Arbitraje y Ratio Autónomo
+            if t_u:
+                p_u = data_live[t_u].iloc[-1]
+                ratio_auto = round((p_u * ccl_v162) / cp_l)
+                p_teo = (p_u * ccl_v162) / ratio_auto
+                sprd = ((cp_l - p_teo) / p_teo) * 100
+            else:
+                ratio_auto, p_teo, sprd = 1, cp_l, 0.0
+
+            # Métricas de Momentum e IA
+            # Usamos 100 días de historia solo para el fractal y volumen
             h_l = yf.Ticker(t_l).history(period="100d")
-            cp_l = h_l['Close'].iloc[-1]
-            
-            # B. Identificación de ADR y Deducción Automática de Ratio
-            t_u = t_l.replace('D.BA', '').replace('.BA', '')
-            if t_l == 'VIST.BA': t_u = 'VIST'
-            
-            try:
-                p_u = yf.Ticker(t_u).fast_info['last_price']
-                ratio_auto = round((p_u * ccl_v) / cp_l)
-                p_t = (p_u * ccl_v) / ratio_auto
-                sprd = ((cp_l - p_t) / p_t) * 100
-            except:
-                p_u, ratio_auto, p_t, sprd = None, 1, cp_l, 0.0
-
-            # C. Métricas de Fuerza (RSI & Volumen)
-            delta = h_l['Close'].diff()
-            gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
-            loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-            rsi = 100 - (100 / (1 + (gain.iloc[-1] / loss.iloc[-1])))
             vol_attn = h_l['Volume'].iloc[-1] / h_l['Volume'].mean()
-
-            # D. Probabilidad IA & Kelly (Dinámico por volumen y Brent)
-            # La probabilidad se ajusta sola según el mercado
-            prob_ia = 0.5 + (0.15 if vol_attn > 1.1 else 0) + (0.15 if brent_now > 98 else -0.1)
-            prob_ia = min(0.99, max(0.1, prob_ia))
+            prob_ia = min(0.99, 0.5 + (0.15 if vol_attn > 1.1 else 0) + (0.15 if brent_v162 > 98.5 else -0.1))
             kelly_f = max(0, (prob_ia - (1 - prob_ia)))
-            sug_inv = st.session_state.liq * kelly_f * 0.4 # Kelly Fraccional
-
-            # E. Señal de Acción y Fractales
+            
+            # Fractales
             f5 = "🟦" if cp_l > h_l['Close'].iloc[-5] else "⬜"
             f21 = "🟦" if cp_l > h_l['Close'].iloc[-21] else "⬜"
-            
-            if sprd < -0.8: acc, info = "🚀 ACECHAR COMPRA", "Desarbitraje (Barato)"
-            elif rsi > 75: acc, info = "⚠️ TOMAR GANANCIA", "Sobrecompra"
-            elif sprd > 0.8: acc, info = "⚖️ ARBITRAR VENTA", "Local caro"
-            else: acc, info = "⌛ MANTENER", "Tendencia Estable"
 
             flota_res.append({
                 "ACTIVO": t_l,
-                "ACCIÓN": acc,
+                "ACCIÓN": "🚀 ACECHAR COMPRA" if sprd < -0.8 else "⌛ MANTENER",
                 "FRACTAL": f"{f5}{f21}",
                 "RATIO": f"{ratio_auto}:1",
                 "CONFIDENCIA": f"{prob_ia*100:.0f}%",
-                "RSI": round(rsi, 1),
                 "SPREAD %": f"{sprd:+.2f}%",
                 "KELLY": f"{kelly_f*100:.1f}%",
-                "SUGERENCIA": f"${sug_inv:,.0f}",
-                "MOTIVO": info
+                "SUGERENCIA": f"${(st.session_state.liq * kelly_f * 0.4):,.0f}"
             })
         except: continue
 
+    # 4. RENDERIZADO INSTITUCIONAL
     st.table(pd.DataFrame(flota_res))
-    st.info(f"💵 Dólar Arbitraje: ${ccl_v:.2f} | 🛡️ Motor Autónomo V162 Activo")
+    st.success(f"💵 CCL Live: ${ccl_v162:.2f} | 🛢️ Brent Live: u$s {brent_v162:.2f}")
 
 except Exception as e:
-    st.error(f"Error de Sincronización: {e}")
+    st.error(f"🛰️ Error de Sincronización Live: {e}")
 
 
 # --- 🌐 ALERTA TEMPRANA & FRACTAL GLOBAL ---
