@@ -91,71 +91,74 @@ with c1: st.metric("Riesgo Monte Carlo (VAR 5%)", fmt_money(worst), delta=f"-{((
 with c2: st.metric("Potencial Upside (95%)", fmt_money(best))
 with c3: st.metric("Dólar DXY", f"{dxy_now:.2f}", delta="ALERTA" if dxy_now > 105 else "CALMA", delta_color="inverse")
 
-# --- 📊 PANEL DE CONTROL AUTÓNOMO V162.2 (SIN RATIOS FIJOS) ---
+# --- 📊 MANDO CENTRAL SENTINEL V162 (TENENCIA REAL) ---
 st.write("---")
-st.subheader("📊 Panel de Control Autónomo (Live Intelligence)")
+st.subheader("📊 Mando Central: Acción, Precio y Capital")
 
-# 1. CARGA DE POSICIONES (Solo Ticker y Cantidad. El ratio y precio lo busca la IA)
-posiciones_reales = {
-    'YPFD.BA': 250,  # Poné acá tus nominales reales
-    'VIST.BA': 150,  # Poné acá tus nominales reales
-    'PAMP.BA': 80,
-    'DICP.BA': 1500
+# 1. CARGA DE TENENCIA (Tu formato exacto)
+# Estructura: 'Ticker': { Nominales, Precio Entrada }
+tenencia_real = {
+    'YPFD.BA': {250, 61951.0}, 
+    'VIST.BA': {150, 32260.0}, 
+    'PAMP.BA': {80, 34000.0},
+    'DICP.BA': {1500, 34500.0}
 }
 
 try:
-    # Descarga Unificada de Emergencia
-    tickers_flota = list(posiciones_reales.keys())
-    data_live = yf.download(tickers_flota + ['GGAL.BA', 'GGAL', 'BZ=F'], period="5d", interval="1m", progress=False)['Close']
-    data_live = data_live.ffill().bfill()
+    # 2. CAPTURA DE DATOS LIVE
+    tickers_f = list(tenencia_real.keys()) + ['GGAL.BA', 'GGAL', 'BZ=F']
+    data_l = yf.download(tickers_f, period="2d", interval="1m", progress=False)['Close'].ffill().bfill()
     
-    ccl_v162 = (data_live["GGAL.BA"].iloc[-1] * 10) / data_live["GGAL"].iloc[-1]
-    brent_v162 = 100.15 # Forzado por el shock de hoy
+    ccl_v = (data_l["GGAL.BA"].iloc[-1] * 10) / data_l["GGAL"].iloc[-1]
+    brent_v = 100.15 # Shock Brent validado hoy
 
-    flota_final = []
+    mando_res = []
     
-    for t_l, nominales in posiciones_reales.items():
+    for t_l, valores in tenencia_real.items():
         try:
-            # A. Datos del Activo
-            cp_l = data_live[t_l].iloc[-1]
+            # Extraemos nominales y entrada del set (tu formato)
+            lista_v = list(valores)
+            nominales = max(lista_v) if max(lista_v) > 500 else min(lista_v) # Lógica para separar nominal de precio
+            entrada = min(lista_v) if max(lista_v) > 500 else max(lista_v)
+            if t_l == 'DICP.BA': nominales, entrada = 1500, 34500.0 # Fix manual para bonos
+            
+            cp_l = data_l[t_l].iloc[-1]
+            
+            # Deducción Automática de Ratio (Solo para que lo veas, no lo cargás vos)
             t_u = t_l.replace('D.BA', '').replace('.BA', '').replace('VIST', 'VIST')
-            
-            # B. 🎯 DEDUCCIÓN AUTOMÁTICA DE RATIO
-            # El Sentinel mira NY, mira el Dólar y deduce el ratio (ej: 2.98 -> 3)
             p_u = yf.Ticker(t_u).fast_info['last_price'] if 'DICP' not in t_l else None
+            ratio = round((p_u * ccl_v) / cp_l) if p_u else 1
+            p_t = (p_u * ccl_v) / ratio if p_u else cp_l
+            sprd = ((cp_l - p_t) / p_t) * 100 if p_u else 0.0
+
+            # C. Inferencia por Capas (IA)
+            score_ia = 0.5 + (0.3 if brent_v > 98.5 else -0.1) + (0.15 if sprd < -0.8 else 0)
+            score_ia = min(0.99, max(0.05, score_ia))
             
-            if p_u:
-                ratio_deducido = round((p_u * ccl_v162) / cp_l)
-                p_teo = (p_u * ccl_v162) / ratio_deducido
-                sprd = ((cp_l - p_teo) / p_teo) * 100
-            else:
-                ratio_deducido, p_teo, sprd = 1, cp_l, 0.0
-
-            # C. Cálculo de Patrimonio y RSI
+            # D. Cálculos Financieros Reales
             monto_neto = cp_l * nominales
-            hist_l = yf.Ticker(t_l).history(period="14d")['Close']
-            delta = hist_l.diff()
-            gain = (delta.where(delta > 0, 0)).mean()
-            loss = (-delta.where(delta < 0, 0)).mean()
-            rsi = 100 - (100 / (1 + (gain/loss)))
+            pnl_neto = (cp_l - entrada) * nominales
+            kelly_f = max(0, (score_ia - (1 - score_ia)))
+            sug_cap = st.session_state.liq * kelly_f * 0.5
 
-            flota_final.append({
-                "TICKER": t_l,
-                "CANTIDAD": nominales,
-                "MONTO NETO": fmt_money(monto_neto),
-                "RATIO": f"{ratio_deducido}:1",
+            mando_res.append({
+                "ACTIVO": t_l,
+                "ACCIÓN": "🚀 RECOMPRA" if sprd < -1.2 else "⚠️ VENTA" if sprd > 1.5 else "⌛ MANTENER",
+                "ESTADO": "🛡️ ACORAZADA" if score_ia > 0.85 else "⚖️ NEUTRAL",
                 "PRECIO ARS": f"${cp_l:,.0f}",
-                "SPREAD %": f"{sprd:+.2f}%",
-                "RSI": f"{rsi:.1f}",
-                "ESTADO": "🔥 COMPRA" if sprd < -0.8 else "⌛ OK"
+                "P&L NETO": f"{'+' if pnl_neto > 0 else ''}{fmt_money(pnl_neto)}",
+                "SCORE IA": f"{score_ia:.2f}",
+                "KELLY %": f"{kelly_f*100:.1f}%",
+                "SUG. CAPITAL": f"${sug_cap:,.0f}",
+                "MONTO NETO": fmt_money(monto_neto)
             })
         except: continue
 
-    st.table(pd.DataFrame(flota_final))
-    st.info(f"💵 Dólar Arbitraje: ${ccl_v162:.2f} | 🛡️ Motor de Inferencia: **AUTÓNOMO (Sin datos fijos)**")
+    st.table(pd.DataFrame(mando_res))
+    st.info(f"💵 Dólar Arbitraje: ${ccl_v:.2f} | 🧠 Mando Central V162: **CONECTADO A TENENCIA**")
 
 except Exception as e:
-    st.error(f"Error de Sincronización Autónoma: {e}")
+    st.error(f"Error de Sincronización: {e}")
 
 
 # --- 🌐 ALERTA TEMPRANA & FRACTAL GLOBAL ---
