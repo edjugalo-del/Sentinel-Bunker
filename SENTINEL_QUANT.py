@@ -98,10 +98,10 @@ st.subheader("📊 Mando Central: Acción, Precio y Capital")
 # 1. CARGA DE TENENCIA (Tu formato exacto)
 # Estructura: 'Ticker': { Nominales, Precio Entrada }
 tenencia_real = {
-    'YPFD.BA': {250, 61951.0}, 
-    'VIST.BA': {150, 32260.0}, 
-    'PAMP.BA': {80, 34000.0},
-    'DICP.BA': {1500, 34500.0}
+    'YPFD.BA': {101, 61951.0}, 
+    'VIST.BA': {102, 33049.21}, 
+    'PAMP.BA': {0, 34000.0},
+    'DICP.BA': {408, 505.20}
 }
 
 try:
